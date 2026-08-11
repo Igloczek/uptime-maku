@@ -1,8 +1,34 @@
-// @ts-nocheck
 "use strict";
 
 import { ConditionVariable } from "@/server/monitor-conditions/variables";
 import { defaultStringOperators } from "@/server/monitor-conditions/operators";
+
+type MonitorRuntimeServer = {
+    store: object;
+    settings: object;
+    getUserAgent: () => string;
+};
+
+type LoadedMonitor = {
+    check: (...args: unknown[]) => unknown;
+};
+
+type MonitorDefinition = {
+    supportsConditions?: boolean;
+    conditionVariables?: ConditionVariable[];
+    allowCustomStatus?: boolean;
+    load: (server: MonitorRuntimeServer) => unknown | Promise<unknown>;
+};
+
+type MonitorDefinitionMap = Record<string, MonitorDefinition>;
+
+type MonitorTypeMetadata = {
+    supportsConditions: boolean;
+    conditionVariables: ConditionVariable[];
+    allowCustomStatus: boolean;
+};
+
+type MonitorTypeList = Record<string, MonitorTypeMetadata>;
 
 const CORE_MONITOR_TYPES = ["http", "keyword", "json-query", "ping", "push", "docker", "radius", "kafka-producer"];
 
@@ -101,11 +127,11 @@ const optionalMonitorDefinitions = {
         conditionVariables: [new ConditionVariable("result", defaultStringOperators)],
         load: async () => new (await import("@/server/monitor-types/oracledb")).OracleDbMonitorType(),
     },
-};
+} satisfies MonitorDefinitionMap;
 
 const OPTIONAL_MONITOR_TYPES = Object.keys(optionalMonitorDefinitions);
 
-function createMonitorTypeList(definitions = optionalMonitorDefinitions) {
+function createMonitorTypeList(definitions: MonitorDefinitionMap = optionalMonitorDefinitions): MonitorTypeList {
     return Object.fromEntries(
         Object.entries(definitions).map(([name, definition]) => [
             name,
@@ -119,7 +145,13 @@ function createMonitorTypeList(definitions = optionalMonitorDefinitions) {
 }
 
 class MonitorRuntimeRegistry {
-    constructor(server, definitions = optionalMonitorDefinitions) {
+    server: MonitorRuntimeServer;
+    definitions: MonitorDefinitionMap;
+    monitorTypeList: MonitorTypeList;
+    loaded: Map<string, LoadedMonitor>;
+    loading: Map<string, Promise<LoadedMonitor>>;
+
+    constructor(server: MonitorRuntimeServer, definitions: MonitorDefinitionMap = optionalMonitorDefinitions) {
         this.server = server;
         this.definitions = definitions;
         this.monitorTypeList = createMonitorTypeList(definitions);
@@ -127,21 +159,21 @@ class MonitorRuntimeRegistry {
         this.loading = new Map();
     }
 
-    get(name) {
+    get(name: string): Promise<LoadedMonitor | null> {
         const definition = this.definitions[name];
         if (!definition) {
             return Promise.resolve(null);
         }
 
         if (this.loaded.has(name)) {
-            return Promise.resolve(this.loaded.get(name));
+            return Promise.resolve(this.loaded.get(name)!);
         }
 
         if (!this.loading.has(name)) {
             const loading = Promise.resolve()
                 .then(() => definition.load(this.server))
                 .then((instance) => {
-                    if (!instance || typeof instance !== "object" || typeof instance.check !== "function") {
+                    if (!isLoadedMonitor(instance)) {
                         throw new Error(`Invalid monitor type factory for "${name}": expected an object with check()`);
                     }
                     this.loaded.set(name, instance);
@@ -151,16 +183,20 @@ class MonitorRuntimeRegistry {
             this.loading.set(name, loading);
         }
 
-        return this.loading.get(name);
+        return this.loading.get(name)!;
     }
 
-    getLoadedTypes() {
+    getLoadedTypes(): string[] {
         return [...this.loaded.keys()];
     }
 
-    getLoaded(name) {
+    getLoaded(name: string): LoadedMonitor | null {
         return this.loaded.get(name) || null;
     }
+}
+
+function isLoadedMonitor(value: unknown): value is LoadedMonitor {
+    return typeof value === "object" && value !== null && "check" in value && typeof value.check === "function";
 }
 
 export { CORE_MONITOR_TYPES, MonitorRuntimeRegistry, OPTIONAL_MONITOR_TYPES, createMonitorTypeList };
