@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { BeanModel } from "@/server/bean-model";
+import { SQLiteModel } from "@/server/sqlite-model";
 import { log } from "@/server/logger";
 import { TYPES_WITH_DOMAIN_EXPIRY_SUPPORT_VIA_FIELD } from "@/constants";
 import rdapDnsDataFallback from "@/server/assets/rdap-dns.json" with { type: "json" };
@@ -173,10 +173,10 @@ async function sendDomainNotificationByTargetDays(
     return sent;
 }
 
-class DomainExpiry extends BeanModel {
+class DomainExpiry extends SQLiteModel {
     /**
      * @param {string} domain Domain name
-     * @returns {Promise<DomainExpiry>} Domain bean
+     * @returns {Promise<DomainExpiry>} Domain model
      */
     static async findByName(domain, store) {
         return store.findOne("domain_expiry", "domain = ?", [domain]);
@@ -184,10 +184,10 @@ class DomainExpiry extends BeanModel {
 
     /**
      * @param {string} domain Domain name
-     * @returns {DomainExpiry} Domain bean
+     * @returns {DomainExpiry} Domain model
      */
     static createByName(domain, store) {
-        const d = store.dispense("domain_expiry");
+        const d = store.createModel("domain_expiry");
         d.domain = domain;
         return d;
     }
@@ -236,7 +236,7 @@ class DomainExpiry extends BeanModel {
 
     /**
      * @param {string} domainName Domain name
-     * @returns {Promise<DomainExpiry>} Domain expiry bean
+     * @returns {Promise<DomainExpiry>} Domain expiry model
      */
     static async findByDomainNameOrCreate(domainName, store) {
         let domain = await DomainExpiry.findByName(domainName, store);
@@ -266,22 +266,22 @@ class DomainExpiry extends BeanModel {
      * @returns {Promise<Date | undefined>} the expiry date
      */
     static async checkExpiry(domainName, store, settings) {
-        let bean = await DomainExpiry.findByDomainNameOrCreate(domainName, store);
+        let model = await DomainExpiry.findByDomainNameOrCreate(domainName, store);
         let expiryDate;
 
-        if (bean?.lastCheck && dayjs.utc().diff(dayjs.utc(bean.lastCheck), "day") < 1) {
-            log.debug("domain_expiry", `Domain expiry already checked recently for ${bean.domain}, won't re-check.`);
-            return bean.expiry;
-        } else if (bean) {
-            expiryDate = await bean.getExpiryDate(settings);
+        if (model?.lastCheck && dayjs.utc().diff(dayjs.utc(model.lastCheck), "day") < 1) {
+            log.debug("domain_expiry", `Domain expiry already checked recently for ${model.domain}, won't re-check.`);
+            return model.expiry;
+        } else if (model) {
+            expiryDate = await model.getExpiryDate(settings);
 
-            if (dayjs.utc(expiryDate).isAfter(dayjs.utc(bean.expiry))) {
-                bean.lastExpiryNotificationSent = null;
+            if (dayjs.utc(expiryDate).isAfter(dayjs.utc(model.expiry))) {
+                model.lastExpiryNotificationSent = null;
             }
 
-            bean.expiry = store.isoDateTimeMillis(expiryDate);
-            bean.lastCheck = store.isoDateTimeMillis(dayjs.utc());
-            await store.store(bean);
+            model.expiry = store.isoDateTimeMillis(expiryDate);
+            model.lastCheck = store.isoDateTimeMillis(dayjs.utc());
+            await store.saveModel(model);
         }
 
         if (expiryDate === null) {
@@ -349,7 +349,7 @@ class DomainExpiry extends BeanModel {
                 );
                 if (sent) {
                     domain.lastExpiryNotificationSent = targetDays;
-                    await store.store(domain);
+                    await store.saveModel(domain);
                     return targetDays;
                 }
             }

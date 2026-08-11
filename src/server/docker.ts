@@ -19,29 +19,29 @@ class DockerHost {
      * @param {object} dockerHost Docker host to save
      * @param {?number} dockerHostID ID of the docker host to update
      * @param {number} userID ID of the user who adds the docker host
-     * @returns {Promise<Bean>} Updated docker host
+     * @returns {Promise<Model>} Updated docker host
      */
     static async save(store, dockerHost, dockerHostID, userID) {
-        let bean;
+        let model;
 
         if (dockerHostID) {
-            bean = await store.findOne("docker_host", " id = ? AND user_id = ? ", [dockerHostID, userID]);
+            model = await store.findOne("docker_host", " id = ? AND user_id = ? ", [dockerHostID, userID]);
 
-            if (!bean) {
+            if (!model) {
                 throw new Error("docker host not found");
             }
         } else {
-            bean = store.dispense("docker_host");
+            model = store.createModel("docker_host");
         }
 
-        bean.user_id = userID;
-        bean.docker_daemon = dockerHost.dockerDaemon;
-        bean.docker_type = dockerHost.dockerType;
-        bean.name = dockerHost.name;
+        model.user_id = userID;
+        model.docker_daemon = dockerHost.dockerDaemon;
+        model.docker_type = dockerHost.dockerType;
+        model.name = dockerHost.name;
 
-        await store.store(bean);
+        await store.saveModel(model);
 
-        return bean;
+        return model;
     }
 
     /**
@@ -51,16 +51,16 @@ class DockerHost {
      * @returns {Promise<void>}
      */
     static async delete(store, dockerHostID, userID) {
-        let bean = await store.findOne("docker_host", " id = ? AND user_id = ? ", [dockerHostID, userID]);
+        let model = await store.findOne("docker_host", " id = ? AND user_id = ? ", [dockerHostID, userID]);
 
-        if (!bean) {
+        if (!model) {
             throw new Error("docker host not found");
         }
 
         // Delete removed proxy from monitors if exists
         await store.exec("UPDATE monitor SET docker_host = null WHERE docker_host = ?", [dockerHostID]);
 
-        await store.trash(bean);
+        await store.deleteModel(model);
     }
 
     /**

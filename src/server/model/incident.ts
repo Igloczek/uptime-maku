@@ -1,9 +1,9 @@
 // @ts-nocheck
 
-import { BeanModel } from "@/server/bean-model";
+import { SQLiteModel } from "@/server/sqlite-model";
 import dayjs from "dayjs";
 
-class Incident extends BeanModel {
+class Incident extends SQLiteModel {
     /**
      * Resolve the incident and mark it as inactive
      * @returns {Promise<void>}
@@ -12,7 +12,7 @@ class Incident extends BeanModel {
         this.active = false;
         this.pin = false;
         this.last_updated_date = store.isoDateTime(dayjs.utc());
-        await store.store(this);
+        await store.saveModel(this);
     }
 
     /**

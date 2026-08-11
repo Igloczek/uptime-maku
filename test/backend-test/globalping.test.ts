@@ -720,8 +720,8 @@ describe("GlobalpingMonitorType", () => {
             mockClient.createMeasurement.mockImplementation(() => createMockResponse(createResponse));
             mockClient.awaitMeasurement.mockImplementation(() => awaitResponse);
 
-            const redbeanMock = createRedbeanMock();
-            redbeanMock.exec.mockImplementation(() => Promise.resolve());
+            const storeMock = createStoreMock();
+            storeMock.exec.mockImplementation(() => Promise.resolve());
 
             const monitor = {
                 id: "1",
@@ -738,7 +738,7 @@ describe("GlobalpingMonitorType", () => {
                 ping: null,
             };
 
-            await monitorType.dns(mockClient, monitor, heartbeat, false, redbeanMock);
+            await monitorType.dns(mockClient, monitor, heartbeat, false, storeMock);
 
             expect(mockClient.createMeasurement.mock.calls.length).toBe(1);
             expect(mockClient.createMeasurement.mock.calls[0][0]).toEqual({
@@ -760,8 +760,8 @@ describe("GlobalpingMonitorType", () => {
                 ping: 25,
             });
 
-            expect(redbeanMock.exec.mock.calls.length).toBe(1);
-            expect(redbeanMock.exec.mock.calls[0]).toEqual([
+            expect(storeMock.exec.mock.calls.length).toBe(1);
+            expect(storeMock.exec.mock.calls[0]).toEqual([
                 "UPDATE `monitor` SET dns_last_result = ? WHERE id = ? ",
                 ["93.184.216.34", "1"],
             ]);
@@ -877,8 +877,8 @@ describe("GlobalpingMonitorType", () => {
             mockClient.createMeasurement.mockImplementation(() => createMockResponse(createResponse));
             mockClient.awaitMeasurement.mockImplementation(() => awaitResponse);
 
-            const redbeanMock = createRedbeanMock();
-            redbeanMock.exec.mockImplementation(() => Promise.resolve());
+            const storeMock = createStoreMock();
+            storeMock.exec.mockImplementation(() => Promise.resolve());
 
             const monitor = {
                 id: "1",
@@ -896,7 +896,7 @@ describe("GlobalpingMonitorType", () => {
                 ping: null,
             };
 
-            await monitorType.dns(mockClient, monitor, heartbeat, false, redbeanMock);
+            await monitorType.dns(mockClient, monitor, heartbeat, false, storeMock);
 
             expect(heartbeat).toEqual({
                 status: UP,
@@ -904,7 +904,7 @@ describe("GlobalpingMonitorType", () => {
                 ping: 25,
             });
 
-            expect(redbeanMock.exec.mock.calls[0]).toEqual([
+            expect(storeMock.exec.mock.calls[0]).toEqual([
                 "UPDATE `monitor` SET dns_last_result = ? WHERE id = ? ",
                 ["93.184.216.34", "1"],
             ]);
@@ -922,8 +922,8 @@ describe("GlobalpingMonitorType", () => {
             mockClient.createMeasurement.mockImplementation(() => createMockResponse(createResponse));
             mockClient.awaitMeasurement.mockImplementation(() => awaitResponse);
 
-            const redbeanMock = createRedbeanMock();
-            redbeanMock.exec.mockImplementation(() => Promise.resolve());
+            const storeMock = createStoreMock();
+            storeMock.exec.mockImplementation(() => Promise.resolve());
 
             const monitor = {
                 id: "1",
@@ -940,11 +940,11 @@ describe("GlobalpingMonitorType", () => {
                 msg: "",
             };
 
-            await expect(monitorType.dns(mockClient, monitor, heartbeat, false, redbeanMock)).rejects.toEqual(
+            await expect(monitorType.dns(mockClient, monitor, heartbeat, false, storeMock)).rejects.toEqual(
                 new Error("New York (NY), US, NA, MASSIVEGRID (AS49683) : No record matched. 93.184.216.34")
             );
 
-            expect(redbeanMock.exec.mock.calls[0]).toEqual([
+            expect(storeMock.exec.mock.calls[0]).toEqual([
                 "UPDATE `monitor` SET dns_last_result = ? WHERE id = ? ",
                 ["93.184.216.34", "1"],
             ]);
@@ -968,8 +968,8 @@ describe("GlobalpingMonitorType", () => {
             mockClient.createMeasurement.mockImplementation(() => createMockResponse(createResponse));
             mockClient.awaitMeasurement.mockImplementation(() => awaitResponse);
 
-            const redbeanMock = createRedbeanMock();
-            redbeanMock.exec.mockImplementation(() => Promise.resolve());
+            const storeMock = createStoreMock();
+            storeMock.exec.mockImplementation(() => Promise.resolve());
 
             const monitor = {
                 id: "1",
@@ -986,7 +986,7 @@ describe("GlobalpingMonitorType", () => {
                 ping: null,
             };
 
-            await monitorType.dns(mockClient, monitor, heartbeat, false, redbeanMock);
+            await monitorType.dns(mockClient, monitor, heartbeat, false, storeMock);
 
             const expectedCreateMeasurement = {
                 type: "dns",
@@ -1010,8 +1010,8 @@ describe("GlobalpingMonitorType", () => {
                 ping: 25,
             });
 
-            expect(redbeanMock.exec.mock.calls.length).toBe(1);
-            expect(redbeanMock.exec.mock.calls[0]).toEqual([
+            expect(storeMock.exec.mock.calls.length).toBe(1);
+            expect(storeMock.exec.mock.calls[0]).toEqual([
                 "UPDATE `monitor` SET dns_last_result = ? WHERE id = ? ",
                 ["93.184.216.34", "1"],
             ]);
@@ -1165,10 +1165,10 @@ function createGlobalpingClientMock() {
 }
 
 /**
- * Reusable mock factory for RedBean
- * @returns {object} Mocked RedBean
+ * Reusable mock factory for the SQLite store
+ * @returns {object} Mocked SQLite store
  */
-function createRedbeanMock() {
+function createStoreMock() {
     return {
         exec: mock(() => undefined),
     };

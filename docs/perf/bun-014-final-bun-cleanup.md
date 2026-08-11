@@ -30,18 +30,18 @@ Date: 2026-06-29
 
 These remain because code still imports them directly on supported paths.
 
-| Dependency                                  | Current owner                                                                                                                           |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `express`                                   | `src/server/server.ts`, `src/server/uptime-maku-server.ts`, routers, and compatibility middleware still mount an Express app behind Bun. |
-| `express-basic-auth`                        | `src/server/auth.ts` basic-auth middleware.                                                                                             |
-| `express-static-gzip`                       | `src/server/server.ts` static asset compatibility path.                                                                                 |
-| `prometheus-api-metrics`                    | `/metrics` middleware in `src/server/server.ts`.                                                                                        |
-| `@louislam/sqlite3`, `redbean-node`, `knex` | SQLite migration tests and legacy migration assets. The application runtime uses the Bun SQLite compatibility store.                    |
-| `axios`                                     | Frontend pages, notification providers, monitor implementations, Docker helper, update checker, and vendored NTLM helper.               |
-| `ws`                                        | WebSocket Upgrade monitor implementation and backend websocket tests.                                                                   |
-| `isomorphic-ws`                             | Nostr notification provider global WebSocket shim.                                                                                      |
-| `node-cloudflared-tunnel`                   | Cloudflared socket handler.                                                                                                             |
-| `node-radius-utils`                         | Radius utility wrapper in `src/server/util-server.ts`.                                                                                  |
+| Dependency                  | Current owner                                                                                                                            |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `express`                   | `src/server/server.ts`, `src/server/uptime-maku-server.ts`, routers, and compatibility middleware still mount an Express app behind Bun. |
+| `express-basic-auth`        | `src/server/auth.ts` basic-auth middleware.                                                                                              |
+| `express-static-gzip`       | `src/server/server.ts` static asset compatibility path.                                                                                  |
+| `prometheus-api-metrics`    | `/metrics` middleware in `src/server/server.ts`.                                                                                         |
+| `@louislam/sqlite3`, `knex` | SQLite migration tests and compatibility migration assets. The application runtime uses the purpose-built Bun SQLite store.              |
+| `axios`                     | Frontend pages, notification providers, monitor implementations, Docker helper, update checker, and vendored NTLM helper.                |
+| `ws`                        | WebSocket Upgrade monitor implementation and backend websocket tests.                                                                    |
+| `isomorphic-ws`             | Nostr notification provider global WebSocket shim.                                                                                       |
+| `node-cloudflared-tunnel`   | Cloudflared socket handler.                                                                                                              |
+| `node-radius-utils`         | Radius utility wrapper in `src/server/util-server.ts`.                                                                                   |
 
 ## Validation
 

@@ -1,14 +1,14 @@
 import { sync as rimrafSync } from "rimraf";
 import Database from "@/server/database";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
-import { MODEL_MAPPING } from "@/server/model-registry";
+import { SQLiteStore } from "@/server/sqlite-store";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 
 class TestDB {
     dataDir;
 
     constructor(dir = "./data/test") {
         this.dataDir = dir;
-        this.store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
+        this.store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
     }
 
     async create() {

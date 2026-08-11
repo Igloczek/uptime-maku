@@ -39,7 +39,7 @@ Focused validation was run with the repository's Bun commands:
 bun run lint
 bun run build
 bun test \
-  test/backend-test/sqlite-core.test.ts \
+  test/backend-test/sqlite-store.test.ts \
   test/backend-test/composition-root.test.ts \
   test/backend-test/schema.test.ts \
   test/backend-test/upgrade.test.ts \
@@ -84,7 +84,7 @@ The median delta is **-128 KiB (-0.18%)**. The candidate's larger spread and var
 ## Validation and manual smoke
 
 - Frozen install and production build passed for baseline and candidate.
-- Focused behavioral validation passed: 86 tests, 0 failures, 1,158 assertions. This includes typed creation, import-order independence, fresh explicit stores, per-store constructor/bean/persistence isolation, unknown-property rejection without schema mutation, and supported-baseline upgrade behavior.
+- Focused behavioral validation passed: 86 tests, 0 failures, 1,158 assertions. This includes typed creation, import-order independence, fresh explicit stores, per-store constructor/model/persistence isolation, unknown-property rejection without schema mutation, and supported-baseline upgrade behavior.
 - Lint passed with only existing warnings and deprecation notices.
 - Compiled manual smoke passed: `/api/entry-page` returned HTTP 200 with 37 bytes; `/setup` returned HTTP 200 with 1,196 bytes; SQLite `PRAGMA integrity_check` returned `ok`; the settings table contained 2 rows; SIGTERM produced exit code 0.
 

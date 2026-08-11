@@ -5,13 +5,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Database as BunDatabase } from "bun:sqlite";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
-import { BeanModel } from "@/server/bean-model";
-import { MODEL_MAPPING } from "@/server/model-registry";
+import { SQLiteStore } from "@/server/sqlite-store";
+import { SQLiteModel } from "@/server/sqlite-model";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 
 function createFaultingStore(faults) {
-    return new BunSQLiteRedbean({
-        modelMapping: MODEL_MAPPING,
+    return new SQLiteStore({
+        modelMapping: SQLITE_MODEL_MAPPING,
         databaseFactory(sqlitePath, options) {
             const db = new BunDatabase(sqlitePath, options);
             return {
@@ -31,25 +31,25 @@ function createFaultingStore(faults) {
     });
 }
 
-class FirstNotification extends BeanModel {}
-class SecondNotification extends BeanModel {}
+class FirstNotification extends SQLiteModel {}
+class SecondNotification extends SQLiteModel {}
 
-function importInOrder(first, second, core, registry) {
+function importInOrder(first, second, storeModule, mappingModule) {
     const result = Bun.spawnSync([
         process.execPath,
         "-e",
-        `await import(${JSON.stringify(first)}); await import(${JSON.stringify(second)}); const { BunSQLiteRedbean } = await import(${JSON.stringify(core)}); const { MODEL_MAPPING } = await import(${JSON.stringify(registry)}); const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING }); if (!(store.dispense("monitor") instanceof MODEL_MAPPING.monitor) || !(store.dispense("heartbeat") instanceof MODEL_MAPPING.heartbeat)) throw new Error("explicit store lost typed beans");`,
+        `await import(${JSON.stringify(first)}); await import(${JSON.stringify(second)}); const { SQLiteStore } = await import(${JSON.stringify(storeModule)}); const { SQLITE_MODEL_MAPPING } = await import(${JSON.stringify(mappingModule)}); const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING }); if (!(store.createModel("monitor") instanceof SQLITE_MODEL_MAPPING.monitor) || !(store.createModel("heartbeat") instanceof SQLITE_MODEL_MAPPING.heartbeat)) throw new Error("explicit store lost typed models");`,
     ]);
     return { exitCode: result.exitCode, stderr: new TextDecoder().decode(result.stderr) };
 }
 
-describe("Bun SQLite Redbean compatibility store", () => {
+describe("SQLite store", () => {
     let dir;
     let store;
 
     beforeEach(async () => {
         dir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-store-"));
-        store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
+        store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         await store.connect({
             sqlitePath: path.join(dir, "kuma.db"),
             templatePath: path.join(process.cwd(), "src/db/kuma.db"),
@@ -64,7 +64,7 @@ describe("Bun SQLite Redbean compatibility store", () => {
 
     test("keeps the SQLite core bundle outside domain and runtime boundaries", async () => {
         const build = await Bun.build({
-            entrypoints: [path.join(process.cwd(), "src/server/sqlite-core.ts")],
+            entrypoints: [path.join(process.cwd(), "src/server/sqlite-store.ts")],
             bundle: true,
             metafile: true,
             write: false,
@@ -86,15 +86,15 @@ describe("Bun SQLite Redbean compatibility store", () => {
         expect(inputs.filter((input) => forbidden.some((boundary) => input.includes(boundary)))).toEqual([]);
     });
 
-    test("allows core and registry imports in either order", () => {
-        const core = path.join(process.cwd(), "src/server/sqlite-core.ts");
-        const registry = path.join(process.cwd(), "src/server/model-registry.ts");
+    test("allows store and mapping imports in either order", () => {
+        const storeModule = path.join(process.cwd(), "src/server/sqlite-store.ts");
+        const mappingModule = path.join(process.cwd(), "src/server/sqlite-model-mapping.ts");
 
         for (const [first, second] of [
-            [core, registry],
-            [registry, core],
+            [storeModule, mappingModule],
+            [mappingModule, storeModule],
         ]) {
-            const result = importInOrder(first, second, core, registry);
+            const result = importInOrder(first, second, storeModule, mappingModule);
             expect(result.exitCode, result.stderr).toBe(0);
         }
     });
@@ -151,10 +151,10 @@ describe("Bun SQLite Redbean compatibility store", () => {
         const trx = await store.begin();
         try {
             await trx.exec("DELETE FROM status_page_cname WHERE status_page_id = ?", [1]);
-            const mapping = trx.dispense("status_page_cname");
+            const mapping = trx.createModel("status_page_cname");
             mapping.status_page_id = 1;
             mapping.domain = "status.example.com";
-            await trx.store(mapping);
+            await trx.saveModel(mapping);
             await trx.commit();
         } catch (error) {
             await trx.rollback();
@@ -171,9 +171,9 @@ describe("Bun SQLite Redbean compatibility store", () => {
         const transaction = await store.begin();
         await transaction.exec("INSERT INTO notification (name, config) VALUES (?, ?)", ["transaction", "{}"]);
 
-        const queuedBean = store.dispense("notification");
-        queuedBean.name = "queued-store";
-        queuedBean.config = "{}";
+        const queuedModel = store.createModel("notification");
+        queuedModel.name = "queued-store";
+        queuedModel.config = "{}";
         const completed = [];
         const values = {};
         const queue = (name, operation) =>
@@ -187,8 +187,8 @@ describe("Bun SQLite Redbean compatibility store", () => {
             queue("exec", () =>
                 store.exec("INSERT INTO notification (name, config) VALUES (?, ?)", ["queued-exec", "{}"])
             ),
-            queue("store", () => store.store(queuedBean)),
-            queue("trash", () => store.trash(existing)),
+            queue("saveModel", () => store.saveModel(queuedModel)),
+            queue("deleteModel", () => store.deleteModel(existing)),
             queue("getAll", () => store.getAll("SELECT name FROM notification ORDER BY name")),
             queue("getRow", () => store.getRow("SELECT name FROM notification WHERE name = ?", ["transaction"])),
             queue("getCell", () => store.getCell("SELECT COUNT(*) FROM notification")),
@@ -220,8 +220,8 @@ describe("Bun SQLite Redbean compatibility store", () => {
         const names = ["queued-exec", "queued-store", "transaction"];
         expect(completed).toEqual([
             "exec",
-            "store",
-            "trash",
+            "saveModel",
+            "deleteModel",
             "getAll",
             "getRow",
             "getCell",
@@ -348,7 +348,9 @@ describe("Bun SQLite Redbean compatibility store", () => {
         await expect(transaction.exec("INSERT INTO isolation_log VALUES ('stale')")).rejects.toThrow(
             "Transaction has finished"
         );
-        await expect(transaction.store(store.dispense("notification"))).rejects.toThrow("Transaction has finished");
+        await expect(transaction.saveModel(store.createModel("notification"))).rejects.toThrow(
+            "Transaction has finished"
+        );
     });
 
     test("quarantines the connection when a failed commit cannot roll back", async () => {
@@ -517,14 +519,14 @@ describe("Bun SQLite Redbean compatibility store", () => {
     test("finishes an already-started ordinary operation before begin and makes close wait", async () => {
         await store.exec("DROP TABLE incident");
         await store.exec("CREATE TABLE incident (id INTEGER PRIMARY KEY AUTOINCREMENT, pin INTEGER)");
-        const bean = store.dispense("incident");
-        bean.pin = 1;
+        const model = store.createModel("incident");
+        model.pin = 1;
 
-        const storing = store.store(bean);
+        const storing = store.saveModel(model);
         const transaction = await store.begin();
         await transaction.rollback();
         await storing;
-        expect(await store.getCell("SELECT pin FROM incident WHERE id = ?", [bean.id])).toBe(1);
+        expect(await store.getCell("SELECT pin FROM incident WHERE id = ?", [model.id])).toBe(1);
 
         const blocker = await store.begin();
         let closed = false;
@@ -557,27 +559,29 @@ describe("Bun SQLite Redbean compatibility store", () => {
         expect(store.isOpen()).toBe(false);
     });
 
-    test("trash deletes stored beans, clears their identity, and ignores unsaved beans", async () => {
-        const notification = store.dispense("notification");
+    test("deleteModel deletes stored models, clears their identity, and ignores unsaved models", async () => {
+        const notification = store.createModel("notification");
         notification.name = "Trash regression";
         notification.config = "{}";
-        const id = await store.store(notification);
+        const id = await store.saveModel(notification);
 
         expect(await store.load("notification", id)).not.toBeNull();
 
-        await store.trash(notification);
+        await store.deleteModel(notification);
 
         expect(notification.id).toBe(0);
         expect(await store.load("notification", id)).toBeNull();
-        await expect(store.trash(notification)).resolves.toBeUndefined();
+        await expect(store.deleteModel(notification)).resolves.toBeUndefined();
 
-        const unsaved = store.dispense("notification");
-        await expect(store.trash(unsaved)).resolves.toBeUndefined();
-        await expect(store.trash({ id })).rejects.toThrow("Cannot trash bean that is not owned by this SQLite store");
+        const unsaved = store.createModel("notification");
+        await expect(store.deleteModel(unsaved)).resolves.toBeUndefined();
+        await expect(store.deleteModel({ id })).rejects.toThrow(
+            "Cannot delete model that is not owned by this SQLite store"
+        );
     });
 
-    test("serializes freshly dispensed heartbeat beans for live socket events", async () => {
-        const heartbeat = store.dispense("heartbeat");
+    test("serializes freshly created heartbeat models for live socket events", async () => {
+        const heartbeat = store.createModel("heartbeat");
         heartbeat.monitor_id = 7;
         heartbeat.status = 1;
         heartbeat.time = "2026-01-01 00:00:00.000";
@@ -600,7 +604,7 @@ describe("Bun SQLite Redbean compatibility store", () => {
         });
     });
 
-    test("returns model beans for status-page group relations", async () => {
+    test("returns models for status-page group relations", async () => {
         await store.exec("INSERT INTO user (id, username, password, active) VALUES (?, ?, ?, ?)", [
             1,
             "smoke",
@@ -644,7 +648,7 @@ describe("Bun SQLite Redbean compatibility store", () => {
             [1]
         );
 
-        const [monitor] = store.convertToBeans("monitor", monitorRows);
+        const [monitor] = store.hydrateModels("monitor", monitorRows);
         expect(typeof monitor.getIgnoreTls).toBe("function");
         expect(monitor.getIgnoreTls()).toBe(false);
         expect(monitor.sendUrl).toBe(true);
@@ -652,7 +656,7 @@ describe("Bun SQLite Redbean compatibility store", () => {
     });
 
     test("uses the explicit immutable model mapping and falls back for unknown tables", () => {
-        expect(Object.keys(MODEL_MAPPING).sort()).toEqual([
+        expect(Object.keys(SQLITE_MODEL_MAPPING).sort()).toEqual([
             "api_key",
             "docker_host",
             "domain_expiry",
@@ -667,24 +671,24 @@ describe("Bun SQLite Redbean compatibility store", () => {
             "tag",
             "user",
         ]);
-        expect(store.dispense("monitor")).toBeInstanceOf(MODEL_MAPPING.monitor);
-        expect(store.dispense("not_a_model")).toBeInstanceOf(BeanModel);
+        expect(store.createModel("monitor")).toBeInstanceOf(SQLITE_MODEL_MAPPING.monitor);
+        expect(store.createModel("not_a_model")).toBeInstanceOf(SQLiteModel);
     });
 
     test("each explicit store creates every supported typed model", () => {
-        for (const [table, Model] of Object.entries(MODEL_MAPPING)) {
-            expect(store.dispense(table)).toBeInstanceOf(Model);
+        for (const [table, Model] of Object.entries(SQLITE_MODEL_MAPPING)) {
+            expect(store.createModel(table)).toBeInstanceOf(Model);
         }
-        expect(store.convertToBean("heartbeat", { monitor_id: 1 })).toBeInstanceOf(MODEL_MAPPING.heartbeat);
+        expect(store.hydrateModel("heartbeat", { monitor_id: 1 })).toBeInstanceOf(SQLITE_MODEL_MAPPING.heartbeat);
     });
 
-    test("keeps model constructors, beans, and persistence isolated per store", async () => {
+    test("keeps model constructors, models, and persistence isolated per store", async () => {
         const firstDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-mapping-first-"));
         const secondDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-mapping-second-"));
         const firstMapping = { notification: FirstNotification };
         const secondMapping = { notification: SecondNotification };
-        const first = new BunSQLiteRedbean({ modelMapping: firstMapping });
-        const second = new BunSQLiteRedbean({ modelMapping: secondMapping });
+        const first = new SQLiteStore({ modelMapping: firstMapping });
+        const second = new SQLiteStore({ modelMapping: secondMapping });
 
         try {
             await Promise.all([
@@ -701,31 +705,31 @@ describe("Bun SQLite Redbean compatibility store", () => {
             ]);
 
             firstMapping.notification = SecondNotification;
-            const firstBean = first.dispense("notification");
-            const secondBean = second.dispense("notification");
-            expect(firstBean).toBeInstanceOf(FirstNotification);
-            expect(secondBean).toBeInstanceOf(SecondNotification);
-            expect(firstBean).not.toBe(secondBean);
-            expect(firstBean.constructor).not.toBe(secondBean.constructor);
+            const firstModel = first.createModel("notification");
+            const secondModel = second.createModel("notification");
+            expect(firstModel).toBeInstanceOf(FirstNotification);
+            expect(secondModel).toBeInstanceOf(SecondNotification);
+            expect(firstModel).not.toBe(secondModel);
+            expect(firstModel.constructor).not.toBe(secondModel.constructor);
 
-            firstBean.name = "first-store";
-            secondBean.name = "second-store";
-            await first.store(firstBean);
-            await second.store(secondBean);
+            firstModel.name = "first-store";
+            secondModel.name = "second-store";
+            await first.saveModel(firstModel);
+            await second.saveModel(secondModel);
 
             expect(await first.getCell("SELECT name FROM notification")).toBe("first-store");
             expect(await second.getCell("SELECT name FROM notification")).toBe("second-store");
-            await expect(second.store(firstBean)).rejects.toThrow(
-                "Cannot store bean that is not owned by this SQLite store"
+            await expect(second.saveModel(firstModel)).rejects.toThrow(
+                "Cannot save model that is not owned by this SQLite store"
             );
-            await expect(second.trash(firstBean)).rejects.toThrow(
-                "Cannot trash bean that is not owned by this SQLite store"
+            await expect(second.deleteModel(firstModel)).rejects.toThrow(
+                "Cannot delete model that is not owned by this SQLite store"
             );
-            await expect(first.store(secondBean)).rejects.toThrow(
-                "Cannot store bean that is not owned by this SQLite store"
+            await expect(first.saveModel(secondModel)).rejects.toThrow(
+                "Cannot save model that is not owned by this SQLite store"
             );
-            await expect(first.trash(secondBean)).rejects.toThrow(
-                "Cannot trash bean that is not owned by this SQLite store"
+            await expect(first.deleteModel(secondModel)).rejects.toThrow(
+                "Cannot delete model that is not owned by this SQLite store"
             );
             expect(await first.getCell("SELECT name FROM notification")).toBe("first-store");
             expect(await second.getCell("SELECT name FROM notification")).toBe("second-store");
@@ -737,27 +741,29 @@ describe("Bun SQLite Redbean compatibility store", () => {
         }
     });
 
-    test("rejects unknown bean properties without changing the SQLite schema", async () => {
+    test("rejects unknown model properties without changing the SQLite schema", async () => {
         const before = await store.getAll("PRAGMA table_info('notification')");
-        const bean = store.dispense("notification");
-        bean.name = "unknown-property";
-        bean.schemaProbe = "must-not-become-a-column";
+        const model = store.createModel("notification");
+        model.name = "unknown-property";
+        model.schemaProbe = "must-not-become-a-column";
 
-        await expect(store.store(bean)).rejects.toThrow("Refusing to store unknown column notification.schemaProbe");
+        await expect(store.saveModel(model)).rejects.toThrow(
+            "Refusing to store unknown column notification.schemaProbe"
+        );
 
         expect(await store.getAll("PRAGMA table_info('notification')")).toEqual(before);
         expect(await store.getCell("SELECT COUNT(*) FROM notification WHERE name = ?", ["unknown-property"])).toBe(0);
     });
 
     test("registered model serializers preserve stored identifiers", () => {
-        expect(store.convertToBean("tag", { id: 7, name: "monitor_name", color: "#D97706" }).toJSON()).toEqual({
+        expect(store.hydrateModel("tag", { id: 7, name: "monitor_name", color: "#D97706" }).toJSON()).toEqual({
             id: 7,
             name: "monitor_name",
             color: "#D97706",
         });
         expect(
             store
-                .convertToBean("proxy", {
+                .hydrateModel("proxy", {
                     id: 8,
                     user_id: 3,
                     protocol: "http",
@@ -780,8 +786,8 @@ describe("Bun SQLite Redbean compatibility store", () => {
             1,
         ]);
 
-        const bean = store.dispense("monitor");
-        bean.import({
+        const model = store.createModel("monitor");
+        model.import({
             active: true,
             accepted_statuscodes_json: '["200-299"]',
             domainExpiryNotification: false,
@@ -807,7 +813,7 @@ describe("Bun SQLite Redbean compatibility store", () => {
             wsSubprotocol: "chat",
         });
 
-        const id = await store.store(bean);
+        const id = await store.saveModel(model);
         const columns = await store.getCol("SELECT name FROM pragma_table_info('monitor')");
 
         expect(columns.includes("ignoreTls")).toBe(false);
@@ -896,9 +902,9 @@ describe("Bun SQLite Redbean compatibility store", () => {
             wsSubprotocol: "graphql-ws",
         };
 
-        const bean = store.dispense("monitor");
-        bean.import(createPayload);
-        const id = await store.store(bean);
+        const model = store.createModel("monitor");
+        model.import(createPayload);
+        const id = await store.saveModel(model);
 
         const created = await store.load("monitor", id);
         expect(created.getIgnoreTls()).toBe(true);
@@ -921,7 +927,7 @@ describe("Bun SQLite Redbean compatibility store", () => {
             pushToken: "updated-token",
             wsSubprotocol: "json",
         });
-        await store.store(created);
+        await store.saveModel(created);
 
         const updated = await store.load("monitor", id);
         expect(updated.name).toBe("Updated round-trip monitor");

@@ -14,8 +14,8 @@ import { log } from "@/server/logger";
 import { getRandomInt, genSecret } from "@/util/random";
 import config from "@/server/config";
 import { createVersionChecker, version } from "@/server/check-version";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
-import { MODEL_MAPPING } from "@/server/model-registry";
+import { SQLiteStore } from "@/server/sqlite-store";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 import { Settings } from "@/server/settings";
 import jwt from "@/server/jwt";
 
@@ -138,7 +138,7 @@ log.info("server", "Loading modules");
 log.debug("server", "Creating database store");
 log.debug("server", "Importing 2FA Modules");
 
-const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
+const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
 const settings = new Settings(store);
 const server = new UptimeMakuServer(store, settings);
 await server.loadFrontendAssets();
@@ -662,7 +662,7 @@ let needSetup = false;
             try {
                 checkLogin(socket);
                 await resolveCoreHttpProxy(store, monitor.type, monitor.proxyId, socket.userID, monitor.ignoreTls);
-                let bean = store.dispense("monitor");
+                let model = store.createModel("monitor");
 
                 let notificationIDList = monitor.notificationIDList;
                 delete monitor.notificationIDList;
@@ -696,32 +696,32 @@ let needSetup = false;
                     }
                 }
 
-                bean.import(monitor);
+                model.import(monitor);
                 // Map camelCase frontend property to snake_case database column
                 if (monitor.retryOnlyOnStatusCodeFailure !== undefined) {
-                    bean.retry_only_on_status_code_failure = monitor.retryOnlyOnStatusCodeFailure;
+                    model.retry_only_on_status_code_failure = monitor.retryOnlyOnStatusCodeFailure;
                 }
-                bean.user_id = socket.userID;
+                model.user_id = socket.userID;
 
-                bean.validate();
+                model.validate();
 
-                await store.store(bean);
+                await store.saveModel(model);
 
-                await updateMonitorNotification(bean.id, notificationIDList);
+                await updateMonitorNotification(model.id, notificationIDList);
 
-                await server.sendUpdateMonitorIntoList(socket, bean.id);
+                await server.sendUpdateMonitorIntoList(socket, model.id);
 
                 if (monitor.active !== false) {
-                    await startMonitor(socket.userID, bean.id);
+                    await startMonitor(socket.userID, model.id);
                 }
 
-                log.info("monitor", `Added Monitor: ${bean.id} User ID: ${socket.userID}`);
+                log.info("monitor", `Added Monitor: ${model.id} User ID: ${socket.userID}`);
 
                 callback({
                     ok: true,
                     msg: "successAdded",
                     msgi18n: true,
-                    monitorID: bean.id,
+                    monitorID: model.id,
                 });
             } catch (e) {
                 log.error("monitor", `Error adding Monitor: ${monitor.id} User ID: ${socket.userID}`);
@@ -739,9 +739,9 @@ let needSetup = false;
                 let removeGroupChildren = false;
                 checkLogin(socket);
 
-                let bean = await store.findOne("monitor", " id = ? ", [monitor.id]);
+                let model = await store.findOne("monitor", " id = ? ", [monitor.id]);
 
-                if (bean.user_id !== socket.userID) {
+                if (model.user_id !== socket.userID) {
                     throw new Error("Permission denied.");
                 }
                 await resolveCoreHttpProxy(store, monitor.type, monitor.proxyId, socket.userID, monitor.ignoreTls);
@@ -755,7 +755,7 @@ let needSetup = false;
                 }
 
                 // Remove children if monitor type has changed (from group to non-group)
-                if (bean.type === "group" && monitor.type !== bean.type) {
+                if (model.type === "group" && monitor.type !== model.type) {
                     removeGroupChildren = true;
                 }
 
@@ -764,137 +764,137 @@ let needSetup = false;
                     throw new Error("Accepted status codes are not all strings");
                 }
 
-                bean.name = monitor.name;
-                bean.description = monitor.description;
-                bean.parent = monitor.parent;
-                bean.type = monitor.type;
-                bean.subtype = monitor.subtype;
-                bean.url = monitor.url;
-                bean.wsIgnoreSecWebsocketAcceptHeader = monitor.wsIgnoreSecWebsocketAcceptHeader;
-                bean.wsSubprotocol = monitor.wsSubprotocol;
-                bean.method = monitor.method;
-                bean.body = monitor.body;
-                bean.ipFamily = monitor.ipFamily;
-                bean.headers = monitor.headers;
-                bean.basic_auth_user = monitor.basic_auth_user;
-                bean.basic_auth_pass = monitor.basic_auth_pass;
-                bean.bearer_token = monitor.bearer_token;
-                bean.timeout = monitor.timeout;
-                bean.oauth_client_id = monitor.oauth_client_id;
-                bean.oauth_client_secret = monitor.oauth_client_secret;
-                bean.oauth_auth_method = monitor.oauth_auth_method;
-                bean.oauth_token_url = monitor.oauth_token_url;
-                bean.oauth_scopes = monitor.oauth_scopes;
-                bean.oauth_audience = monitor.oauth_audience;
-                bean.tlsCa = monitor.tlsCa;
-                bean.tlsCert = monitor.tlsCert;
-                bean.tlsKey = monitor.tlsKey;
-                bean.interval = monitor.interval;
-                bean.retryInterval = monitor.retryInterval;
-                bean.resendInterval = monitor.resendInterval;
-                bean.hostname = monitor.hostname;
-                bean.game = monitor.game;
-                bean.maxretries = monitor.maxretries;
-                bean.port = monitor.port;
-                bean.location = monitor.location;
-                bean.protocol = monitor.protocol;
+                model.name = monitor.name;
+                model.description = monitor.description;
+                model.parent = monitor.parent;
+                model.type = monitor.type;
+                model.subtype = monitor.subtype;
+                model.url = monitor.url;
+                model.wsIgnoreSecWebsocketAcceptHeader = monitor.wsIgnoreSecWebsocketAcceptHeader;
+                model.wsSubprotocol = monitor.wsSubprotocol;
+                model.method = monitor.method;
+                model.body = monitor.body;
+                model.ipFamily = monitor.ipFamily;
+                model.headers = monitor.headers;
+                model.basic_auth_user = monitor.basic_auth_user;
+                model.basic_auth_pass = monitor.basic_auth_pass;
+                model.bearer_token = monitor.bearer_token;
+                model.timeout = monitor.timeout;
+                model.oauth_client_id = monitor.oauth_client_id;
+                model.oauth_client_secret = monitor.oauth_client_secret;
+                model.oauth_auth_method = monitor.oauth_auth_method;
+                model.oauth_token_url = monitor.oauth_token_url;
+                model.oauth_scopes = monitor.oauth_scopes;
+                model.oauth_audience = monitor.oauth_audience;
+                model.tlsCa = monitor.tlsCa;
+                model.tlsCert = monitor.tlsCert;
+                model.tlsKey = monitor.tlsKey;
+                model.interval = monitor.interval;
+                model.retryInterval = monitor.retryInterval;
+                model.resendInterval = monitor.resendInterval;
+                model.hostname = monitor.hostname;
+                model.game = monitor.game;
+                model.maxretries = monitor.maxretries;
+                model.port = monitor.port;
+                model.location = monitor.location;
+                model.protocol = monitor.protocol;
 
-                bean.keyword = monitor.keyword;
-                bean.invertKeyword = monitor.invertKeyword;
-                bean.ignoreTls = monitor.ignoreTls;
-                bean.expiryNotification = monitor.expiryNotification;
-                bean.domainExpiryNotification = monitor.domainExpiryNotification;
-                bean.upsideDown = monitor.upsideDown;
-                bean.packetSize = monitor.packetSize;
-                bean.maxredirects = monitor.maxredirects;
-                bean.accepted_statuscodes_json = JSON.stringify(monitor.accepted_statuscodes);
-                bean.save_response = monitor.saveResponse;
-                bean.save_error_response = monitor.saveErrorResponse;
-                bean.response_max_length = monitor.responseMaxLength;
-                bean.dns_resolve_type = monitor.dns_resolve_type;
-                bean.dns_resolve_server = monitor.dns_resolve_server;
-                bean.pushToken = monitor.pushToken;
-                bean.docker_container = monitor.docker_container;
-                bean.docker_host = monitor.docker_host;
-                bean.proxyId = Number.isInteger(monitor.proxyId) ? monitor.proxyId : null;
-                bean.mqttUsername = monitor.mqttUsername;
-                bean.mqttPassword = monitor.mqttPassword;
-                bean.mqttTopic = monitor.mqttTopic;
-                bean.mqttSuccessMessage = monitor.mqttSuccessMessage;
-                bean.mqttCheckType = monitor.mqttCheckType;
-                bean.mqttWebsocketPath = monitor.mqttWebsocketPath;
-                bean.databaseConnectionString = monitor.databaseConnectionString;
-                bean.databaseQuery = monitor.databaseQuery;
-                bean.authMethod = monitor.authMethod;
-                bean.authWorkstation = monitor.authWorkstation;
-                bean.authDomain = monitor.authDomain;
-                bean.grpcUrl = monitor.grpcUrl;
-                bean.grpcProtobuf = monitor.grpcProtobuf;
-                bean.grpcServiceName = monitor.grpcServiceName;
-                bean.grpcMethod = monitor.grpcMethod;
-                bean.grpcBody = monitor.grpcBody;
-                bean.grpcMetadata = monitor.grpcMetadata;
-                bean.grpcEnableTls = monitor.grpcEnableTls;
-                bean.radiusUsername = monitor.radiusUsername;
-                bean.radiusPassword = monitor.radiusPassword;
-                bean.radiusCalledStationId = monitor.radiusCalledStationId;
-                bean.radiusCallingStationId = monitor.radiusCallingStationId;
-                bean.radiusSecret = monitor.radiusSecret;
-                bean.httpBodyEncoding = monitor.httpBodyEncoding;
-                bean.expectedValue = monitor.expectedValue;
-                bean.jsonPath = monitor.jsonPath;
-                bean.kafkaProducerTopic = monitor.kafkaProducerTopic;
-                bean.kafkaProducerBrokers = JSON.stringify(monitor.kafkaProducerBrokers);
-                bean.kafkaProducerAllowAutoTopicCreation = monitor.kafkaProducerAllowAutoTopicCreation;
-                bean.kafkaProducerSaslOptions = JSON.stringify(monitor.kafkaProducerSaslOptions);
-                bean.kafkaProducerMessage = monitor.kafkaProducerMessage;
-                bean.cacheBust = monitor.cacheBust;
-                bean.kafkaProducerSsl = monitor.kafkaProducerSsl;
-                bean.kafkaProducerAllowAutoTopicCreation = monitor.kafkaProducerAllowAutoTopicCreation;
-                bean.gamedigGivenPortOnly = monitor.gamedigGivenPortOnly;
-                bean.gamedigToken = monitor.gamedigToken;
-                bean.remote_browser = monitor.remote_browser;
-                bean.smtpSecurity = monitor.smtpSecurity;
-                bean.snmpVersion = monitor.snmpVersion;
-                bean.snmpOid = monitor.snmpOid;
-                bean.jsonPathOperator = monitor.jsonPathOperator;
-                bean.retry_only_on_status_code_failure = Boolean(monitor.retryOnlyOnStatusCodeFailure);
-                bean.rabbitmqNodes = JSON.stringify(monitor.rabbitmqNodes);
-                bean.rabbitmqUsername = monitor.rabbitmqUsername;
-                bean.rabbitmqPassword = monitor.rabbitmqPassword;
-                bean.conditions = JSON.stringify(monitor.conditions);
-                bean.manual_status = monitor.manual_status;
-                bean.system_service_name = monitor.system_service_name;
-                bean.expected_tls_alert = monitor.expectedTlsAlert;
-                bean.screenshot_delay = monitor.screenshot_delay;
-                bean.screenshotDelay = monitor.screenshot_delay;
+                model.keyword = monitor.keyword;
+                model.invertKeyword = monitor.invertKeyword;
+                model.ignoreTls = monitor.ignoreTls;
+                model.expiryNotification = monitor.expiryNotification;
+                model.domainExpiryNotification = monitor.domainExpiryNotification;
+                model.upsideDown = monitor.upsideDown;
+                model.packetSize = monitor.packetSize;
+                model.maxredirects = monitor.maxredirects;
+                model.accepted_statuscodes_json = JSON.stringify(monitor.accepted_statuscodes);
+                model.save_response = monitor.saveResponse;
+                model.save_error_response = monitor.saveErrorResponse;
+                model.response_max_length = monitor.responseMaxLength;
+                model.dns_resolve_type = monitor.dns_resolve_type;
+                model.dns_resolve_server = monitor.dns_resolve_server;
+                model.pushToken = monitor.pushToken;
+                model.docker_container = monitor.docker_container;
+                model.docker_host = monitor.docker_host;
+                model.proxyId = Number.isInteger(monitor.proxyId) ? monitor.proxyId : null;
+                model.mqttUsername = monitor.mqttUsername;
+                model.mqttPassword = monitor.mqttPassword;
+                model.mqttTopic = monitor.mqttTopic;
+                model.mqttSuccessMessage = monitor.mqttSuccessMessage;
+                model.mqttCheckType = monitor.mqttCheckType;
+                model.mqttWebsocketPath = monitor.mqttWebsocketPath;
+                model.databaseConnectionString = monitor.databaseConnectionString;
+                model.databaseQuery = monitor.databaseQuery;
+                model.authMethod = monitor.authMethod;
+                model.authWorkstation = monitor.authWorkstation;
+                model.authDomain = monitor.authDomain;
+                model.grpcUrl = monitor.grpcUrl;
+                model.grpcProtobuf = monitor.grpcProtobuf;
+                model.grpcServiceName = monitor.grpcServiceName;
+                model.grpcMethod = monitor.grpcMethod;
+                model.grpcBody = monitor.grpcBody;
+                model.grpcMetadata = monitor.grpcMetadata;
+                model.grpcEnableTls = monitor.grpcEnableTls;
+                model.radiusUsername = monitor.radiusUsername;
+                model.radiusPassword = monitor.radiusPassword;
+                model.radiusCalledStationId = monitor.radiusCalledStationId;
+                model.radiusCallingStationId = monitor.radiusCallingStationId;
+                model.radiusSecret = monitor.radiusSecret;
+                model.httpBodyEncoding = monitor.httpBodyEncoding;
+                model.expectedValue = monitor.expectedValue;
+                model.jsonPath = monitor.jsonPath;
+                model.kafkaProducerTopic = monitor.kafkaProducerTopic;
+                model.kafkaProducerBrokers = JSON.stringify(monitor.kafkaProducerBrokers);
+                model.kafkaProducerAllowAutoTopicCreation = monitor.kafkaProducerAllowAutoTopicCreation;
+                model.kafkaProducerSaslOptions = JSON.stringify(monitor.kafkaProducerSaslOptions);
+                model.kafkaProducerMessage = monitor.kafkaProducerMessage;
+                model.cacheBust = monitor.cacheBust;
+                model.kafkaProducerSsl = monitor.kafkaProducerSsl;
+                model.kafkaProducerAllowAutoTopicCreation = monitor.kafkaProducerAllowAutoTopicCreation;
+                model.gamedigGivenPortOnly = monitor.gamedigGivenPortOnly;
+                model.gamedigToken = monitor.gamedigToken;
+                model.remote_browser = monitor.remote_browser;
+                model.smtpSecurity = monitor.smtpSecurity;
+                model.snmpVersion = monitor.snmpVersion;
+                model.snmpOid = monitor.snmpOid;
+                model.jsonPathOperator = monitor.jsonPathOperator;
+                model.retry_only_on_status_code_failure = Boolean(monitor.retryOnlyOnStatusCodeFailure);
+                model.rabbitmqNodes = JSON.stringify(monitor.rabbitmqNodes);
+                model.rabbitmqUsername = monitor.rabbitmqUsername;
+                model.rabbitmqPassword = monitor.rabbitmqPassword;
+                model.conditions = JSON.stringify(monitor.conditions);
+                model.manual_status = monitor.manual_status;
+                model.system_service_name = monitor.system_service_name;
+                model.expected_tls_alert = monitor.expectedTlsAlert;
+                model.screenshot_delay = monitor.screenshot_delay;
+                model.screenshotDelay = monitor.screenshot_delay;
 
                 // ping advanced options
-                bean.ping_numeric = monitor.ping_numeric;
-                bean.ping_count = monitor.ping_count;
-                bean.ping_per_request_timeout = monitor.ping_per_request_timeout;
+                model.ping_numeric = monitor.ping_numeric;
+                model.ping_count = monitor.ping_count;
+                model.ping_per_request_timeout = monitor.ping_per_request_timeout;
 
-                bean.validate();
+                model.validate();
 
-                await store.store(bean);
+                await store.saveModel(model);
 
                 if (removeGroupChildren) {
                     await Monitor.unlinkAllChildren(store, monitor.id);
                 }
 
-                await updateMonitorNotification(bean.id, monitor.notificationIDList);
+                await updateMonitorNotification(model.id, monitor.notificationIDList);
 
-                if (await Monitor.isActive(bean.id, bean.active, store)) {
-                    await restartMonitor(socket.userID, bean.id);
+                if (await Monitor.isActive(model.id, model.active, store)) {
+                    await restartMonitor(socket.userID, model.id);
                 }
 
-                await server.sendUpdateMonitorIntoList(socket, bean.id);
+                await server.sendUpdateMonitorIntoList(socket, model.id);
 
                 callback({
                     ok: true,
                     msg: "Saved.",
                     msgi18n: true,
-                    monitorID: bean.id,
+                    monitorID: model.id,
                 });
             } catch (e) {
                 log.error("monitor", e);
@@ -1124,7 +1124,7 @@ let needSetup = false;
 
                 callback({
                     ok: true,
-                    tags: list.map((bean) => bean.toJSON()),
+                    tags: list.map((model) => model.toJSON()),
                 });
             } catch (e) {
                 callback({
@@ -1138,14 +1138,14 @@ let needSetup = false;
             try {
                 checkLogin(socket);
 
-                let bean = store.dispense("tag");
-                bean.name = tag.name;
-                bean.color = tag.color;
-                await store.store(bean);
+                let model = store.createModel("tag");
+                model.name = tag.name;
+                model.color = tag.color;
+                await store.saveModel(model);
 
                 callback({
                     ok: true,
-                    tag: await bean.toJSON(),
+                    tag: await model.toJSON(),
                 });
             } catch (e) {
                 callback({
@@ -1159,8 +1159,8 @@ let needSetup = false;
             try {
                 checkLogin(socket);
 
-                let bean = await store.findOne("tag", " id = ? ", [tag.id]);
-                if (bean == null) {
+                let model = await store.findOne("tag", " id = ? ", [tag.id]);
+                if (model == null) {
                     callback({
                         ok: false,
                         msg: "tagNotFound",
@@ -1168,15 +1168,15 @@ let needSetup = false;
                     });
                     return;
                 }
-                bean.name = tag.name;
-                bean.color = tag.color;
-                await store.store(bean);
+                model.name = tag.name;
+                model.color = tag.color;
+                await store.saveModel(model);
 
                 callback({
                     ok: true,
                     msg: "Saved.",
                     msgi18n: true,
-                    tag: await bean.toJSON(),
+                    tag: await model.toJSON(),
                 });
             } catch (e) {
                 callback({
@@ -1439,14 +1439,14 @@ let needSetup = false;
             try {
                 checkLogin(socket);
 
-                let notificationBean = await Notification.save(store, notification, notificationID, socket.userID);
+                let notificationModel = await Notification.save(store, notification, notificationID, socket.userID);
                 await sendNotificationList(store, io, socket);
 
                 callback({
                     ok: true,
                     msg: "Saved.",
                     msgi18n: true,
-                    id: notificationBean.id,
+                    id: notificationModel.id,
                 });
             } catch (e) {
                 callback({
@@ -1676,10 +1676,10 @@ async function updateMonitorNotification(monitorID, notificationIDList) {
 
     for (let notificationID in notificationIDList) {
         if (notificationIDList[notificationID]) {
-            let relation = store.dispense("monitor_notification");
+            let relation = store.createModel("monitor_notification");
             relation.monitor_id = monitorID;
             relation.notification_id = notificationID;
-            await store.store(relation);
+            await store.saveModel(relation);
         }
     }
 }
@@ -1753,11 +1753,11 @@ async function initDatabase(testMode = false) {
     await Database.connect(store, testMode);
     log.info("server", "Connected to the database");
 
-    let jwtSecretBean = await store.findOne("setting", " `key` = ? ", ["jwtSecret"]);
+    let jwtSecretModel = await store.findOne("setting", " `key` = ? ", ["jwtSecret"]);
 
-    if (!jwtSecretBean) {
+    if (!jwtSecretModel) {
         log.info("server", "JWT secret is not found, generate one.");
-        jwtSecretBean = await initJWTSecret(store);
+        jwtSecretModel = await initJWTSecret(store);
         log.info("server", "Stored JWT secret into database");
     } else {
         log.debug("server", "Load JWT secret from database.");
@@ -1769,7 +1769,7 @@ async function initDatabase(testMode = false) {
         needSetup = true;
     }
 
-    server.jwtSecret = jwtSecretBean.value;
+    server.jwtSecret = jwtSecretModel.value;
 }
 
 /**

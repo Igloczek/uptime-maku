@@ -7,7 +7,7 @@ import utc from "dayjs/plugin/utc";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { MODEL_MAPPING } from "@/server/model-registry";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 import { HeartbeatDataPlane } from "@/server/heartbeat-data-plane";
 import DomainExpiry from "@/server/model/domain_expiry";
 import { MonitorRuntimeRegistry } from "@/server/monitor-runtime-registry";
@@ -15,7 +15,7 @@ import { NotificationProviderRegistry } from "@/server/notification-provider-reg
 import { UptimeMakuServer } from "@/server/uptime-maku-server";
 import { Prometheus } from "@/server/prometheus";
 import { handleApiRequest } from "@/server/routers/api-router";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
+import { SQLiteStore } from "@/server/sqlite-store";
 import { Settings } from "@/server/settings";
 import { checkCertExpiryNotifications } from "@/server/tls-cert";
 import { UP } from "@/constants";
@@ -30,7 +30,7 @@ dayjs.extend(timezone);
 
 async function createRuntime(name, type = "owned") {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), `uptime-maku-registry-${name}-`));
-    const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
+    const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
     await store.connect({
         sqlitePath: path.join(directory, "kuma.db"),
         templatePath: path.join(process.cwd(), "src/db/kuma.db"),
@@ -159,7 +159,7 @@ describe("runtime registry production call sites", () => {
             JSON.stringify({ type: "normal" }),
         ]);
         await store.exec("INSERT INTO monitor_notification (monitor_id, notification_id) VALUES (1, 1)");
-        const previous = store.dispense("heartbeat");
+        const previous = store.createModel("heartbeat");
         Object.assign(previous, {
             monitor_id: 1,
             status: UP,

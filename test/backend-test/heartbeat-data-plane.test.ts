@@ -11,8 +11,8 @@ import { sendHeartbeatList } from "@/server/client";
 import { HeartbeatDataPlane } from "@/server/heartbeat-data-plane";
 import { clearWithStoppedMonitors } from "@/server/monitor-clear";
 import { clearOldData } from "@/server/jobs/clear-old-data";
-import { MODEL_MAPPING } from "@/server/model-registry";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
+import { SQLiteStore } from "@/server/sqlite-store";
 import Monitor from "@/server/model/monitor";
 import { Notification } from "@/server/notification";
 import { UptimeMakuServer } from "@/server/uptime-maku-server";
@@ -41,7 +41,7 @@ function deferred() {
 
 async function createRuntime(name, now = dayjs.utc("2026-08-07T12:00:00Z")) {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), `uptime-maku-${name}-`));
-    const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
+    const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
     await store.connect({
         sqlitePath: path.join(directory, "kuma.db"),
         templatePath: path.join(process.cwd(), "src/db/kuma.db"),
@@ -61,7 +61,7 @@ async function createRuntime(name, now = dayjs.utc("2026-08-07T12:00:00Z")) {
 }
 
 function heartbeat(store, values = {}) {
-    return Object.assign(store.dispense("heartbeat"), {
+    return Object.assign(store.createModel("heartbeat"), {
         monitor_id: 1,
         status: UP,
         msg: "OK",
@@ -148,11 +148,11 @@ describe("heartbeat data plane", () => {
         const { data, store } = await createRuntime("rollback");
         await store.exec(`CREATE TRIGGER fail_daily BEFORE INSERT ON stat_daily
                           BEGIN SELECT RAISE(ABORT, 'forced stat failure'); END`);
-        const bean = heartbeat(store);
+        const model = heartbeat(store);
         let published = 0;
 
         await expect(
-            data.write(bean).then(() => {
+            data.write(model).then(() => {
                 published++;
             })
         ).rejects.toThrow("forced stat failure");
@@ -162,7 +162,7 @@ describe("heartbeat data plane", () => {
         expect(await store.getCell("SELECT COUNT(*) FROM stat_daily")).toBe(0);
         expect(await data.list(1)).toEqual([]);
         expect((await data.stats(1)).day).toMatchObject({ uptime: 0, avgPing: null });
-        expect(bean.id).toBeUndefined();
+        expect(model.id).toBeUndefined();
     });
 
     test("keeps concurrent writes lossless and maintenance drain waits for the active transaction", async () => {
@@ -174,14 +174,14 @@ describe("heartbeat data plane", () => {
         let holdFirstWrite = true;
         store.begin = async () => {
             const transaction = await originalBegin();
-            const originalStore = transaction.store;
-            transaction.store = async (...args) => {
+            const originalSaveModel = transaction.saveModel;
+            transaction.saveModel = async (...args) => {
                 if (holdFirstWrite) {
                     holdFirstWrite = false;
                     started.resolve();
                     await release.promise;
                 }
-                return originalStore(...args);
+                return originalSaveModel(...args);
             };
             return transaction;
         };
@@ -332,12 +332,12 @@ describe("heartbeat data plane", () => {
         const releaseDownNotification = deferred();
         const notificationStatuses = [];
         const socketStatuses = [];
-        Monitor.sendNotification = async (_isFirstBeat, _monitor, bean) => {
-            if (bean.status === DOWN) {
+        Monitor.sendNotification = async (_isFirstBeat, _monitor, model) => {
+            if (model.status === DOWN) {
                 downNotificationStarted.resolve();
                 await releaseDownNotification.promise;
             }
-            notificationStatuses.push(bean.status);
+            notificationStatuses.push(model.status);
         };
         const io = {
             rooms: new Map(),
@@ -425,7 +425,7 @@ describe("heartbeat data plane", () => {
         };
         const notifications = [];
         const socketStatuses = [];
-        Monitor.sendNotification = async (_isFirstBeat, _monitor, bean) => notifications.push(bean.status);
+        Monitor.sendNotification = async (_isFirstBeat, _monitor, model) => notifications.push(model.status);
         const io = {
             rooms: new Map(),
             to: () => ({
@@ -455,7 +455,7 @@ describe("heartbeat data plane", () => {
         resumeScheduler.resolve();
         await monitor.activeHeartbeat;
 
-        expect((await data.list(1)).map((bean) => bean.status)).toEqual([UP, UP]);
+        expect((await data.list(1)).map((model) => model.status)).toEqual([UP, UP]);
         expect((await data.latest(1)).msg).toBe("fresh-api-beat");
         expect(notifications).toEqual([]);
         expect(socketStatuses).toEqual([UP]);
@@ -474,7 +474,7 @@ describe("heartbeat data plane", () => {
 
         const notifications = [];
         const socketStatuses = [];
-        Monitor.sendNotification = async (_isFirstBeat, _monitor, bean) => notifications.push(bean.status);
+        Monitor.sendNotification = async (_isFirstBeat, _monitor, model) => notifications.push(model.status);
         const io = {
             rooms: new Map(),
             to: () => ({
@@ -495,7 +495,7 @@ describe("heartbeat data plane", () => {
         scheduled.callback();
         await monitor.activeHeartbeat;
 
-        expect((await data.list(1)).map((bean) => bean.status)).toEqual([UP, DOWN]);
+        expect((await data.list(1)).map((model) => model.status)).toEqual([UP, DOWN]);
         expect(notifications).toEqual([DOWN]);
         expect(socketStatuses).toEqual([DOWN]);
     });
@@ -692,15 +692,15 @@ describe("heartbeat data plane", () => {
         let hold = true;
         store.begin = async () => {
             const transaction = await originalBegin();
-            const originalStore = transaction.store;
-            transaction.store = async (...args) => {
+            const originalSaveModel = transaction.saveModel;
+            transaction.saveModel = async (...args) => {
                 if (hold) {
                     hold = false;
                     events.push("write-start");
                     started.resolve();
                     await release.promise;
                 }
-                return originalStore(...args);
+                return originalSaveModel(...args);
             };
             return transaction;
         };

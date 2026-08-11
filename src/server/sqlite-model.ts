@@ -2,11 +2,11 @@
 "use strict";
 
 /**
- * Base bean for SQLite store models.
+ * Base model for SQLite store models.
  * Kept in its own module so model classes can import it without creating
  * a circular dependency with the store singleton.
  */
-class BeanModel {
+class SQLiteModel {
     import(data) {
         if (!data || typeof data !== "object") {
             return this;
@@ -35,5 +35,5 @@ class BeanModel {
     }
 }
 
-export { BeanModel };
-export default BeanModel;
+export { SQLiteModel };
+export default SQLiteModel;

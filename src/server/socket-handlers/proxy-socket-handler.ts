@@ -14,7 +14,7 @@ export const proxySocketHandler = (socket, store, io, server) => {
         try {
             checkLogin(socket);
 
-            const proxyBean = await Proxy.save(store, proxy, proxyID, socket.userID);
+            const proxyModel = await Proxy.save(store, proxy, proxyID, socket.userID);
             await sendProxyList(store, io, socket);
 
             if (proxy.applyExisting) {
@@ -26,7 +26,7 @@ export const proxySocketHandler = (socket, store, io, server) => {
                 ok: true,
                 msg: "Saved.",
                 msgi18n: true,
-                id: proxyBean.id,
+                id: proxyModel.id,
             });
         } catch (e) {
             callback({

@@ -70,7 +70,7 @@ class Opsgenie extends NotificationProvider {
 
     /**
      * Make POST request to Opsgenie
-     * @param {BeanModel} notification Notification to send
+     * @param {SQLiteModel} notification Notification to send
      * @param {string} url Request url
      * @param {object} data Request body
      * @returns {Promise<string>} Success message

@@ -40,37 +40,37 @@ export const statusPageSocketHandler = (socket, store, server, settings, respons
                 throw new Error("slug is not found");
             }
 
-            let incidentBean;
+            let incidentModel;
 
             if (incident.id) {
-                incidentBean = await store.findOne("incident", " id = ? AND status_page_id = ? ", [
+                incidentModel = await store.findOne("incident", " id = ? AND status_page_id = ? ", [
                     incident.id,
                     statusPageID,
                 ]);
             }
 
-            if (incidentBean == null) {
-                incidentBean = store.dispense("incident");
+            if (incidentModel == null) {
+                incidentModel = store.createModel("incident");
             }
 
-            incidentBean.title = incident.title;
-            incidentBean.content = incident.content;
-            incidentBean.style = incident.style;
-            incidentBean.pin = true;
-            incidentBean.active = true;
-            incidentBean.status_page_id = statusPageID;
+            incidentModel.title = incident.title;
+            incidentModel.content = incident.content;
+            incidentModel.style = incident.style;
+            incidentModel.pin = true;
+            incidentModel.active = true;
+            incidentModel.status_page_id = statusPageID;
 
             if (incident.id) {
-                incidentBean.last_updated_date = store.isoDateTime(dayjs.utc());
+                incidentModel.last_updated_date = store.isoDateTime(dayjs.utc());
             } else {
-                incidentBean.created_date = store.isoDateTime(dayjs.utc());
+                incidentModel.created_date = store.isoDateTime(dayjs.utc());
             }
 
-            await store.store(incidentBean);
+            await store.saveModel(incidentModel);
 
             callback({
                 ok: true,
-                incident: incidentBean.toPublicJSON(),
+                incident: incidentModel.toPublicJSON(),
             });
         } catch (error) {
             callback({
@@ -134,8 +134,8 @@ export const statusPageSocketHandler = (socket, store, server, settings, respons
                 return;
             }
 
-            let bean = await store.findOne("incident", " id = ? AND status_page_id = ? ", [incidentID, statusPageID]);
-            if (!bean) {
+            let model = await store.findOne("incident", " id = ? AND status_page_id = ? ", [incidentID, statusPageID]);
+            if (!model) {
                 callback({
                     ok: false,
                     msg: "Incident not found or access denied",
@@ -160,19 +160,19 @@ export const statusPageSocketHandler = (socket, store, server, settings, respons
                 incident.style = "warning";
             }
 
-            bean.title = incident.title;
-            bean.content = incident.content;
-            bean.style = incident.style;
-            bean.pin = incident.pin !== false;
-            bean.lastUpdatedDate = store.isoDateTime(dayjs.utc());
+            model.title = incident.title;
+            model.content = incident.content;
+            model.style = incident.style;
+            model.pin = incident.pin !== false;
+            model.lastUpdatedDate = store.isoDateTime(dayjs.utc());
 
-            await store.store(bean);
+            await store.saveModel(model);
 
             callback({
                 ok: true,
                 msg: "Saved.",
                 msgi18n: true,
-                incident: bean.toPublicJSON(),
+                incident: model.toPublicJSON(),
             });
         } catch (error) {
             callback({
@@ -197,8 +197,8 @@ export const statusPageSocketHandler = (socket, store, server, settings, respons
                 return;
             }
 
-            let bean = await store.findOne("incident", " id = ? AND status_page_id = ? ", [incidentID, statusPageID]);
-            if (!bean) {
+            let model = await store.findOne("incident", " id = ? AND status_page_id = ? ", [incidentID, statusPageID]);
+            if (!model) {
                 callback({
                     ok: false,
                     msg: "Incident not found or access denied",
@@ -207,7 +207,7 @@ export const statusPageSocketHandler = (socket, store, server, settings, respons
                 return;
             }
 
-            await store.trash(bean);
+            await store.deleteModel(model);
 
             callback({
                 ok: true,
@@ -237,8 +237,8 @@ export const statusPageSocketHandler = (socket, store, server, settings, respons
                 return;
             }
 
-            let bean = await store.findOne("incident", " id = ? AND status_page_id = ? ", [incidentID, statusPageID]);
-            if (!bean) {
+            let model = await store.findOne("incident", " id = ? AND status_page_id = ? ", [incidentID, statusPageID]);
+            if (!model) {
                 callback({
                     ok: false,
                     msg: "Incident not found or access denied",
@@ -247,13 +247,13 @@ export const statusPageSocketHandler = (socket, store, server, settings, respons
                 return;
             }
 
-            await bean.resolve(store);
+            await model.resolve(store);
 
             callback({
                 ok: true,
                 msg: "Resolved",
                 msgi18n: true,
-                incident: bean.toPublicJSON(),
+                incident: model.toPublicJSON(),
             });
         } catch (error) {
             callback({
@@ -346,7 +346,7 @@ export const statusPageSocketHandler = (socket, store, server, settings, respons
 
             const transaction = await store.begin();
             try {
-                await transaction.store(statusPage);
+                await transaction.saveModel(statusPage);
                 await statusPage.replaceDomainNameList(transaction, config.domainNameList);
                 await transaction.commit();
             } catch (error) {
@@ -360,46 +360,46 @@ export const statusPageSocketHandler = (socket, store, server, settings, respons
             let groupOrder = 1;
 
             for (let group of publicGroupList) {
-                let groupBean;
+                let groupModel;
                 if (group.id) {
-                    groupBean = await store.findOne("group", " id = ? AND public = 1 AND status_page_id = ? ", [
+                    groupModel = await store.findOne("group", " id = ? AND public = 1 AND status_page_id = ? ", [
                         group.id,
                         statusPage.id,
                     ]);
                 } else {
-                    groupBean = store.dispense("group");
+                    groupModel = store.createModel("group");
                 }
 
-                groupBean.status_page_id = statusPage.id;
-                groupBean.name = group.name;
-                groupBean.public = true;
-                groupBean.weight = groupOrder++;
+                groupModel.status_page_id = statusPage.id;
+                groupModel.name = group.name;
+                groupModel.public = true;
+                groupModel.weight = groupOrder++;
 
-                await store.store(groupBean);
+                await store.saveModel(groupModel);
 
-                await store.exec("DELETE FROM monitor_group WHERE group_id = ? ", [groupBean.id]);
+                await store.exec("DELETE FROM monitor_group WHERE group_id = ? ", [groupModel.id]);
 
                 let monitorOrder = 1;
 
                 for (let monitor of group.monitorList) {
-                    let relationBean = store.dispense("monitor_group");
-                    relationBean.weight = monitorOrder++;
-                    relationBean.group_id = groupBean.id;
-                    relationBean.monitor_id = monitor.id;
+                    let relationModel = store.createModel("monitor_group");
+                    relationModel.weight = monitorOrder++;
+                    relationModel.group_id = groupModel.id;
+                    relationModel.monitor_id = monitor.id;
 
                     if (monitor.sendUrl !== undefined) {
-                        relationBean.send_url = monitor.sendUrl;
+                        relationModel.send_url = monitor.sendUrl;
                     }
 
                     if (monitor.url !== undefined) {
-                        relationBean.custom_url = monitor.url;
+                        relationModel.custom_url = monitor.url;
                     }
 
-                    await store.store(relationBean);
+                    await store.saveModel(relationModel);
                 }
 
-                groupIDList.push(groupBean.id);
-                group.id = groupBean.id;
+                groupIDList.push(groupModel.id);
+                group.id = groupModel.id;
             }
 
             // Delete groups that are not in the list
@@ -458,13 +458,13 @@ export const statusPageSocketHandler = (socket, store, server, settings, respons
 
             checkSlug(slug);
 
-            let statusPage = store.dispense("status_page");
+            let statusPage = store.createModel("status_page");
             statusPage.slug = slug;
             statusPage.title = title;
             statusPage.theme = "auto";
             statusPage.icon = "";
             statusPage.autoRefreshInterval = 300;
-            await store.store(statusPage);
+            await store.saveModel(statusPage);
 
             callback({
                 ok: true,

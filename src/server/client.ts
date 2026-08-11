@@ -6,7 +6,7 @@
 /**
  * Send list of notification providers to client
  * @param {Socket} socket Socket.io socket instance
- * @returns {Promise<Bean[]>} List of notifications
+ * @returns {Promise<Model[]>} List of notifications
  */
 import { TimeLogger } from "@/server/time-logger";
 import { getRuntimeInfo } from "@/server/runtime";
@@ -17,8 +17,8 @@ async function sendNotificationList(store, io, socket) {
     let result = [];
     let list = await store.find("notification", " user_id = ? ", [socket.userID]);
 
-    for (let bean of list) {
-        let notificationObject = bean.export();
+    for (let model of list) {
+        let notificationObject = model.export();
         notificationObject.isDefault = notificationObject.isDefault === 1;
         notificationObject.active = notificationObject.active === 1;
         result.push(notificationObject);
@@ -40,7 +40,7 @@ async function sendNotificationList(store, io, socket) {
  * @returns {Promise<void>}
  */
 async function sendHeartbeatList(heartbeatData, io, socket, monitorID, toUser = false, overwrite = false) {
-    const result = (await heartbeatData.list(monitorID)).map((bean) => bean.toJSON());
+    const result = (await heartbeatData.list(monitorID)).map((model) => model.toJSON());
 
     if (toUser) {
         io.to(socket.userID).emit("heartbeatList", monitorID, result, overwrite);
@@ -64,7 +64,7 @@ async function sendImportantHeartbeatList(heartbeatData, io, socket, monitorID, 
 
     timeLogger.print(`[Monitor: ${monitorID}] sendImportantHeartbeatList`);
 
-    const result = list.map((bean) => bean.toJSON());
+    const result = list.map((model) => model.toJSON());
 
     if (toUser) {
         io.to(socket.userID).emit("importantHeartbeatList", monitorID, result, overwrite);
@@ -76,7 +76,7 @@ async function sendImportantHeartbeatList(heartbeatData, io, socket, monitorID, 
 /**
  * Emit proxy list to client
  * @param {Socket} socket Socket.io socket instance
- * @returns {Promise<Bean[]>} List of proxies
+ * @returns {Promise<Model[]>} List of proxies
  */
 async function sendProxyList(store, io, socket) {
     const timeLogger = new TimeLogger();
@@ -84,7 +84,7 @@ async function sendProxyList(store, io, socket) {
     const list = await store.find("proxy", " user_id = ? ", [socket.userID]);
     io.to(socket.userID).emit(
         "proxyList",
-        list.map((bean) => bean.export())
+        list.map((model) => model.export())
     );
 
     timeLogger.print("Send Proxy List");
@@ -103,8 +103,8 @@ async function sendAPIKeyList(store, io, socket) {
     let result = [];
     const list = await store.find("api_key", "user_id=?", [socket.userID]);
 
-    for (let bean of list) {
-        result.push(bean.toPublicJSON());
+    for (let model of list) {
+        result.push(model.toPublicJSON());
     }
 
     io.to(socket.userID).emit("apiKeyList", result);
@@ -139,7 +139,7 @@ async function sendInfo(server, settings, versionChecker, socket, hideVersion = 
 /**
  * Send list of docker hosts to client
  * @param {Socket} socket Socket.io socket instance
- * @returns {Promise<Bean[]>} List of docker hosts
+ * @returns {Promise<Model[]>} List of docker hosts
  */
 async function sendDockerHostList(store, io, socket) {
     const timeLogger = new TimeLogger();
@@ -147,8 +147,8 @@ async function sendDockerHostList(store, io, socket) {
     let result = [];
     let list = await store.find("docker_host", " user_id = ? ", [socket.userID]);
 
-    for (let bean of list) {
-        result.push(bean.toJSON());
+    for (let model of list) {
+        result.push(model.toJSON());
     }
 
     io.to(socket.userID).emit("dockerHostList", result);
@@ -161,7 +161,7 @@ async function sendDockerHostList(store, io, socket) {
 /**
  * Send list of docker hosts to client
  * @param {Socket} socket Socket.io socket instance
- * @returns {Promise<Bean[]>} List of docker hosts
+ * @returns {Promise<Model[]>} List of docker hosts
  */
 async function sendRemoteBrowserList(store, io, socket) {
     const timeLogger = new TimeLogger();
@@ -169,8 +169,8 @@ async function sendRemoteBrowserList(store, io, socket) {
     let result = [];
     let list = await store.find("remote_browser", " user_id = ? ", [socket.userID]);
 
-    for (let bean of list) {
-        result.push(bean.toJSON());
+    for (let model of list) {
+        result.push(model.toJSON());
     }
 
     io.to(socket.userID).emit("remoteBrowserList", result);

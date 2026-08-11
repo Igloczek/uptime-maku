@@ -1,8 +1,8 @@
 // @ts-nocheck
 
-import { BeanModel } from "@/server/bean-model";
+import { SQLiteModel } from "@/server/sqlite-model";
 
-class Group extends BeanModel {
+class Group extends SQLiteModel {
     /**
      * Return an object that ready to parse to JSON for public Only show
      * necessary data to public
@@ -16,8 +16,8 @@ class Group extends BeanModel {
         let monitorBeanList = await this.getMonitorList(store);
         let monitorList = [];
 
-        for (let bean of monitorBeanList) {
-            monitorList.push(await bean.toPublicJSON(store, showTags, certExpiry));
+        for (let model of monitorBeanList) {
+            monitorList.push(await model.toPublicJSON(store, showTags, certExpiry));
         }
 
         return {
@@ -30,10 +30,10 @@ class Group extends BeanModel {
 
     /**
      * Get all monitors
-     * @returns {Promise<Bean[]>} List of monitors
+     * @returns {Promise<Model[]>} List of monitors
      */
     async getMonitorList(store) {
-        return store.convertToBeans(
+        return store.hydrateModels(
             "monitor",
             await store.getAll(
                 `

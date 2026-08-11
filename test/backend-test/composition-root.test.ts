@@ -5,11 +5,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { MODEL_MAPPING } from "@/server/model-registry";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 import { HeartbeatDataPlane } from "@/server/heartbeat-data-plane";
 import StatusPage from "@/server/model/status_page";
 import { UptimeMakuServer } from "@/server/uptime-maku-server";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
+import { SQLiteStore } from "@/server/sqlite-store";
 import { Settings } from "@/server/settings";
 import { UP } from "@/constants";
 import { createResponseCache } from "@/server/bun-response";
@@ -18,7 +18,7 @@ const runtimes = [];
 
 async function createRuntime(name, timezone, trustProxy) {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), `uptime-maku-composition-${name}-`));
-    const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
+    const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
     await store.connect({
         sqlitePath: path.join(directory, "kuma.db"),
         templatePath: path.join(process.cwd(), "src/db/kuma.db"),
@@ -80,10 +80,10 @@ afterEach(async () => {
 });
 
 describe("explicit composition root", () => {
-    test("fresh processes import the store, registry, models, and scheduler boundaries in any order", () => {
+    test("fresh processes import the store, model mapping, models, and scheduler boundaries in any order", () => {
         const modules = [
-            "src/server/sqlite-core.ts",
-            "src/server/model-registry.ts",
+            "src/server/sqlite-store.ts",
+            "src/server/sqlite-model-mapping.ts",
             "src/server/model/monitor.ts",
             "src/server/model/domain_expiry.ts",
             "src/server/jobs.ts",
@@ -114,7 +114,7 @@ describe("explicit composition root", () => {
             await Promise.all([first.settings.get("primaryBaseURL"), second.settings.get("primaryBaseURL")])
         ).toEqual(["https://first.example", "https://second.example"]);
 
-        const firstBeat = first.store.dispense("heartbeat");
+        const firstBeat = first.store.createModel("heartbeat");
         Object.assign(firstBeat, {
             monitor_id: 1,
             status: UP,
@@ -125,7 +125,7 @@ describe("explicit composition root", () => {
             important: 1,
             retries: 0,
         });
-        const secondBeat = second.store.dispense("heartbeat");
+        const secondBeat = second.store.createModel("heartbeat");
         Object.assign(secondBeat, {
             monitor_id: 1,
             status: UP,

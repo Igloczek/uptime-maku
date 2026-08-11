@@ -56,7 +56,7 @@ class PagerTree extends NotificationProvider {
 
     /**
      * Send the message
-     * @param {BeanModel} notification Message title
+     * @param {SQLiteModel} notification Message title
      * @param {string} title Message title
      * @param {object} monitorJSON Monitor details (For Up/Down only)
      * @param {object} heartbeatJSON Heartbeat details (For Up/Down only)

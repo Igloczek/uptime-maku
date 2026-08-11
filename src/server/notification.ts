@@ -7,7 +7,7 @@ class Notification {
     /**
      * Send a notification
      * @param {NotificationProviderRegistry} providerRegistry Runtime-owned provider registry
-     * @param {BeanModel} notification Notification to send
+     * @param {SQLiteModel} notification Notification to send
      * @param {string} msg General Message
      * @param {object} monitorJSON Monitor details (For Up/Down only)
      * @param {object} heartbeatJSON Heartbeat details (For Up/Down only)
@@ -23,36 +23,36 @@ class Notification {
      * @param {object} notification Notification to save
      * @param {?number} notificationID ID of notification to update
      * @param {number} userID ID of user who adds notification
-     * @returns {Promise<Bean>} Notification that was saved
+     * @returns {Promise<Model>} Notification that was saved
      */
     static async save(store, notification, notificationID, userID) {
-        let bean;
+        let model;
 
         if (notificationID) {
-            bean = await store.findOne("notification", " id = ? AND user_id = ? ", [notificationID, userID]);
+            model = await store.findOne("notification", " id = ? AND user_id = ? ", [notificationID, userID]);
 
-            if (!bean) {
+            if (!model) {
                 throw new Error("notification not found");
             }
         } else {
-            bean = store.dispense("notification");
+            model = store.createModel("notification");
         }
 
         // applyExisting is one time only, don't save it to database.
         const applyExisting = notification.applyExisting || false;
         notification.applyExisting = false;
 
-        bean.name = notification.name;
-        bean.user_id = userID;
-        bean.config = JSON.stringify(notification);
-        bean.is_default = notification.isDefault || false;
-        await store.store(bean);
+        model.name = notification.name;
+        model.user_id = userID;
+        model.config = JSON.stringify(notification);
+        model.is_default = notification.isDefault || false;
+        await store.saveModel(model);
 
         if (applyExisting) {
-            await applyNotificationEveryMonitor(store, bean.id, userID);
+            await applyNotificationEveryMonitor(store, model.id, userID);
         }
 
-        return bean;
+        return model;
     }
 
     /**
@@ -62,13 +62,13 @@ class Notification {
      * @returns {Promise<void>}
      */
     static async delete(store, notificationID, userID) {
-        let bean = await store.findOne("notification", " id = ? AND user_id = ? ", [notificationID, userID]);
+        let model = await store.findOne("notification", " id = ? AND user_id = ? ", [notificationID, userID]);
 
-        if (!bean) {
+        if (!model) {
             throw new Error("notification not found");
         }
 
-        await store.trash(bean);
+        await store.deleteModel(model);
     }
 
     /**
@@ -97,10 +97,10 @@ async function applyNotificationEveryMonitor(store, notificationID, userID) {
         );
 
         if (!checkNotification) {
-            let relation = store.dispense("monitor_notification");
+            let relation = store.createModel("monitor_notification");
             relation.monitor_id = monitors[i].id;
             relation.notification_id = notificationID;
-            await store.store(relation);
+            await store.saveModel(relation);
         }
     }
 }

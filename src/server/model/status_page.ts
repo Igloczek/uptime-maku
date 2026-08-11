@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { BeanModel } from "@/server/bean-model";
+import { SQLiteModel } from "@/server/sqlite-model";
 import { renderStatusPageDocument } from "@/server/status-page-document";
 import config from "@/server/config";
 import dayjs from "dayjs";
@@ -15,7 +15,7 @@ import {
     INCIDENT_PAGE_SIZE,
 } from "@/constants";
 
-class StatusPage extends BeanModel {
+class StatusPage extends SQLiteModel {
     get autoRefreshInterval() {
         return this.auto_refresh_interval;
     }
@@ -333,8 +333,8 @@ class StatusPage extends BeanModel {
 
         const list = await store.find("group", "public = 1 AND status_page_id = ? ORDER BY weight", [statusPage.id]);
 
-        for (let groupBean of list) {
-            let monitorGroup = await groupBean.toPublicJSON(store, showTags, config?.showCertificateExpiry);
+        for (let groupModel of list) {
+            let monitorGroup = await groupModel.toPublicJSON(store, showTags, config?.showCertificateExpiry);
             publicGroupList.push(monitorGroup);
         }
 
@@ -368,7 +368,7 @@ class StatusPage extends BeanModel {
      * Send status page list to client
      * @param {Server} io io Socket server instance
      * @param {Socket} socket Socket.io instance
-     * @returns {Promise<Bean[]>} Status page list
+     * @returns {Promise<Model[]>} Status page list
      */
     static async sendStatusPageList(store, io, socket, domainMappingList) {
         let result = {};
@@ -417,10 +417,10 @@ class StatusPage extends BeanModel {
             // If the domain name is used in another status page, delete it
             await store.exec("DELETE FROM status_page_cname WHERE domain = ?", [domain]);
 
-            let mapping = store.dispense("status_page_cname");
+            let mapping = store.createModel("status_page_cname");
             mapping.status_page_id = this.id;
             mapping.domain = domain;
-            await store.store(mapping);
+            await store.saveModel(mapping);
         }
     }
 

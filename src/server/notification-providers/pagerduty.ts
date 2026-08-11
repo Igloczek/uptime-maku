@@ -55,7 +55,7 @@ class PagerDuty extends NotificationProvider {
 
     /**
      * Send the message
-     * @param {BeanModel} notification Message title
+     * @param {SQLiteModel} notification Message title
      * @param {string} title Message title
      * @param {string} body Message
      * @param {object} monitorInfo Monitor details (For Up/Down only)

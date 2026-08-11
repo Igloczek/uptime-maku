@@ -15,14 +15,14 @@ export const dockerSocketHandler = (socket, store, io) => {
         try {
             checkLogin(socket);
 
-            let dockerHostBean = await DockerHost.save(store, dockerHost, dockerHostID, socket.userID);
+            let dockerHostModel = await DockerHost.save(store, dockerHost, dockerHostID, socket.userID);
             await sendDockerHostList(store, io, socket);
 
             callback({
                 ok: true,
                 msg: "Saved.",
                 msgi18n: true,
-                id: dockerHostBean.id,
+                id: dockerHostModel.id,
             });
         } catch (e) {
             callback({

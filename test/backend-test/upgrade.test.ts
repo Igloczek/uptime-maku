@@ -6,8 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { Database as BunDatabase } from "bun:sqlite";
 import { applySqlFile } from "@/db/schema/sql-utils";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
-import { MODEL_MAPPING } from "@/server/model-registry";
+import { SQLiteStore } from "@/server/sqlite-store";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 import { SCHEMA_VERSION_KEY, getSchemaVersion } from "@/server/db-migrations";
 
 const projectRoot = path.join(import.meta.dirname, "../..");
@@ -58,7 +58,7 @@ describe("Upstream Kuma upgrade", () => {
         const sql = fs.readFileSync(baselineFixturePath, "utf8");
         loadSqlFixture(dbPath, sql);
 
-        store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
+        store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         await store.connect({
             sqlitePath: dbPath,
             templatePath: dbPath,
@@ -142,7 +142,7 @@ describe("Upstream Kuma Knex end-state", () => {
 
         expect(readSettingValue(dbPath, SCHEMA_VERSION_KEY)).toBeUndefined();
 
-        store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
+        store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         await store.connect({
             sqlitePath: dbPath,
             templatePath: dbPath,
@@ -201,7 +201,7 @@ describe("Fresh Uptime Maku template", () => {
 
         const beforeUserCount = readUserCount(dbPath);
 
-        store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
+        store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         await store.connect({
             sqlitePath: dbPath,
             templatePath: dbPath,
@@ -221,8 +221,8 @@ describe("Upgrade transaction recovery", () => {
         loadSqlFixture(dbPath, fs.readFileSync(baselineFixturePath, "utf8"));
         let insideTransaction = false;
         let failFirstDataStatement = true;
-        const store = new BunSQLiteRedbean({
-            modelMapping: MODEL_MAPPING,
+        const store = new SQLiteStore({
+            modelMapping: SQLITE_MODEL_MAPPING,
             databaseFactory(sqlitePath, options) {
                 const db = new BunDatabase(sqlitePath, options);
                 return {

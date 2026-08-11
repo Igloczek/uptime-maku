@@ -7,10 +7,10 @@ import https from "node:https";
 import net from "node:net";
 import path from "node:path";
 import httpClient from "@/server/http-client";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
-import { MODEL_MAPPING } from "@/server/model-registry";
+import { SQLiteStore } from "@/server/sqlite-store";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 
-const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
+const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
 
 let ipv6ProxyServer;
 try {
@@ -384,7 +384,7 @@ describe("fetch HTTP client", () => {
     });
 
     test("monitor keyword path can read response text through fetch wrapper", async () => {
-        const monitor = store.convertToBean("monitor");
+        const monitor = store.hydrateModel("monitor");
         monitor.auth_method = null;
 
         const res = await monitor.makeHttpMonitorRequest({
@@ -397,7 +397,7 @@ describe("fetch HTTP client", () => {
     });
 
     test("monitor rejects unsupported fetch transport settings explicitly", async () => {
-        const monitor = store.convertToBean("monitor");
+        const monitor = store.hydrateModel("monitor");
         monitor.auth_method = "mtls";
 
         await expect(monitor.assertFetchHttpTransportSupported({}, store)).rejects.toThrow(
@@ -418,7 +418,7 @@ describe("fetch HTTP client", () => {
     });
 
     test("monitor maps an active persisted proxy to Bun fetch options", async () => {
-        const monitor = store.convertToBean("monitor", {
+        const monitor = store.hydrateModel("monitor", {
             type: "http",
             user_id: 1,
             auth_method: null,
@@ -446,7 +446,7 @@ describe("fetch HTTP client", () => {
     });
 
     test("monitor scopes exact Basic proxy auth to a compliant proxy across targets and redirects", async () => {
-        const monitor = store.convertToBean("monitor", {
+        const monitor = store.hydrateModel("monitor", {
             type: "http",
             user_id: 1,
             auth_method: null,
@@ -517,7 +517,7 @@ describe("fetch HTTP client", () => {
     });
 
     test("persisted SOCKS proxy is rejected before fetch without exposing credentials", async () => {
-        const monitor = store.convertToBean("monitor", {
+        const monitor = store.hydrateModel("monitor", {
             type: "http",
             user_id: 1,
             auth_method: null,
@@ -552,7 +552,7 @@ describe("fetch HTTP client", () => {
     });
 
     test("monitor brackets a raw IPv6 proxy host", async () => {
-        const monitor = store.convertToBean("monitor", {
+        const monitor = store.hydrateModel("monitor", {
             type: "http",
             user_id: 1,
             auth_method: null,
@@ -589,7 +589,7 @@ describe("fetch HTTP client", () => {
     });
 
     test("monitor rejects ignoreTls with an HTTPS proxy instead of weakening proxy validation", async () => {
-        const monitor = store.convertToBean("monitor", {
+        const monitor = store.hydrateModel("monitor", {
             type: "http",
             user_id: 1,
             auth_method: null,
@@ -616,7 +616,7 @@ describe("fetch HTTP client", () => {
     });
 
     test("monitor keeps ignoreTls working for a self-signed target through an HTTP proxy", async () => {
-        const monitor = store.convertToBean("monitor", {
+        const monitor = store.hydrateModel("monitor", {
             type: "http",
             user_id: 1,
             auth_method: null,
@@ -643,7 +643,7 @@ describe("fetch HTTP client", () => {
     });
 
     test("monitor honors ignoreTls against a deterministic self-signed TLS fixture", async () => {
-        const monitor = store.convertToBean("monitor");
+        const monitor = store.hydrateModel("monitor");
         monitor.auth_method = null;
         monitor.proxy_id = null;
         monitor.ignoreTls = true;
@@ -658,7 +658,7 @@ describe("fetch HTTP client", () => {
     });
 
     test("persisted forced HTTP IP family remains explicitly rejected", async () => {
-        const monitor = store.convertToBean("monitor");
+        const monitor = store.hydrateModel("monitor");
         monitor.auth_method = null;
         monitor.proxy_id = null;
         monitor.ignoreTls = false;
@@ -668,13 +668,13 @@ describe("fetch HTTP client", () => {
     });
 
     test("saved response size behavior remains truncation after the response is read", async () => {
-        const monitor = store.convertToBean("monitor");
+        const monitor = store.hydrateModel("monitor");
         monitor.response_max_length = 5;
-        const bean = {};
+        const model = {};
 
-        await monitor.saveResponseData(bean, "abcdef");
+        await monitor.saveResponseData(model, "abcdef");
 
-        expect(await store.dispense("heartbeat").constructor.decodeResponseValue(bean.response)).toBe(
+        expect(await store.createModel("heartbeat").constructor.decodeResponseValue(model.response)).toBe(
             "abcde... (truncated)"
         );
     });

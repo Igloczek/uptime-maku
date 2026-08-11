@@ -47,7 +47,7 @@ class AliyunSMS extends NotificationProvider {
 
     /**
      * Send the SMS notification
-     * @param {BeanModel} notification Notification details
+     * @param {SQLiteModel} notification Notification details
      * @param {string} msgbody Message template
      * @returns {Promise<boolean>} True if successful else false
      */

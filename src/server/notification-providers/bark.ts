@@ -49,7 +49,7 @@ class Bark extends NotificationProvider {
     /**
      * Add additional parameter for Bark v1 endpoints.
      * Leads to better on device styles (iOS 15 optimized)
-     * @param {BeanModel} notification Notification to send
+     * @param {SQLiteModel} notification Notification to send
      * @returns {string} Additional URL parameters
      */
     additionalParameters(notification) {
@@ -89,7 +89,7 @@ class Bark extends NotificationProvider {
 
     /**
      * Send the message
-     * @param {BeanModel} notification Notification to send
+     * @param {SQLiteModel} notification Notification to send
      * @param {string} title Message title
      * @param {string} subtitle Message
      * @param {string} endpoint Endpoint to send request to

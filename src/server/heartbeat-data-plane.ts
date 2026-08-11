@@ -24,19 +24,19 @@ class HeartbeatDataPlane {
         });
     }
 
-    write(bean) {
-        return this.runOperation(bean.monitor_id, () => this.commitWrite(bean));
+    write(model) {
+        return this.runOperation(model.monitor_id, () => this.commitWrite(model));
     }
 
-    async commitWrite(bean) {
-        const calculator = await this.uptime.get(bean.monitor_id);
-        const staged = await calculator.stageUpdate(bean.status, Number.parseFloat(bean.ping));
+    async commitWrite(model) {
+        const calculator = await this.uptime.get(model.monitor_id);
+        const staged = await calculator.stageUpdate(model.status, Number.parseFloat(model.ping));
         const transaction = await this.store.begin();
-        const previousID = bean.id;
+        const previousID = model.id;
 
         try {
-            bean.end_time = this.store.isoDateTimeMillis(staged.date);
-            await transaction.store(bean);
+            model.end_time = this.store.isoDateTimeMillis(staged.date);
+            await transaction.saveModel(model);
             await staged.persist(transaction);
             await transaction.commit();
             staged.commit();
@@ -44,9 +44,9 @@ class HeartbeatDataPlane {
         } catch (error) {
             await transaction.rollback();
             if (previousID === undefined) {
-                delete bean.id;
+                delete model.id;
             } else {
-                bean.id = previousID;
+                model.id = previousID;
             }
             throw error;
         }
@@ -61,7 +61,7 @@ class HeartbeatDataPlane {
             "SELECT * FROM heartbeat WHERE monitor_id = ? ORDER BY time DESC, id DESC LIMIT ?",
             [monitorID, limit]
         );
-        return this.store.convertToBeans("heartbeat", rows.reverse());
+        return this.store.hydrateModels("heartbeat", rows.reverse());
     }
 
     async recentForOwner(userID, monitorID, period) {
@@ -118,7 +118,7 @@ class HeartbeatDataPlane {
              ORDER BY heartbeat.time DESC LIMIT ? OFFSET ?`,
             params
         );
-        return this.store.convertToBeans("heartbeat", rows);
+        return this.store.hydrateModels("heartbeat", rows);
     }
 
     async clearEvents(userID, monitorID) {

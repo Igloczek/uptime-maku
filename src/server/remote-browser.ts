@@ -5,16 +5,16 @@ class RemoteBrowser {
      * Gets remote browser from ID
      * @param {number} remoteBrowserID ID of the remote browser
      * @param {number} userID ID of the user who created the remote browser
-     * @returns {Promise<Bean>} Remote Browser
+     * @returns {Promise<Model>} Remote Browser
      */
     static async get(store, remoteBrowserID, userID) {
-        let bean = await store.findOne("remote_browser", " id = ? AND user_id = ? ", [remoteBrowserID, userID]);
+        let model = await store.findOne("remote_browser", " id = ? AND user_id = ? ", [remoteBrowserID, userID]);
 
-        if (!bean) {
+        if (!model) {
             throw new Error("Remote browser not found");
         }
 
-        return bean;
+        return model;
     }
 
     /**
@@ -22,28 +22,28 @@ class RemoteBrowser {
      * @param {object} remoteBrowser Remote Browser to save
      * @param {?number} remoteBrowserID ID of the Remote Browser to update
      * @param {number} userID ID of the user who adds the Remote Browser
-     * @returns {Promise<Bean>} Updated Remote Browser
+     * @returns {Promise<Model>} Updated Remote Browser
      */
     static async save(store, remoteBrowser, remoteBrowserID, userID) {
-        let bean;
+        let model;
 
         if (remoteBrowserID) {
-            bean = await store.findOne("remote_browser", " id = ? AND user_id = ? ", [remoteBrowserID, userID]);
+            model = await store.findOne("remote_browser", " id = ? AND user_id = ? ", [remoteBrowserID, userID]);
 
-            if (!bean) {
+            if (!model) {
                 throw new Error("Remote browser not found");
             }
         } else {
-            bean = store.dispense("remote_browser");
+            model = store.createModel("remote_browser");
         }
 
-        bean.user_id = userID;
-        bean.name = remoteBrowser.name;
-        bean.url = remoteBrowser.url;
+        model.user_id = userID;
+        model.name = remoteBrowser.name;
+        model.url = remoteBrowser.url;
 
-        await store.store(bean);
+        await store.saveModel(model);
 
-        return bean;
+        return model;
     }
 
     /**
@@ -53,16 +53,16 @@ class RemoteBrowser {
      * @returns {Promise<void>}
      */
     static async delete(store, remoteBrowserID, userID) {
-        let bean = await store.findOne("remote_browser", " id = ? AND user_id = ? ", [remoteBrowserID, userID]);
+        let model = await store.findOne("remote_browser", " id = ? AND user_id = ? ", [remoteBrowserID, userID]);
 
-        if (!bean) {
+        if (!model) {
             throw new Error("Remote Browser not found");
         }
 
         // Delete removed remote browser from monitors if exists
         await store.exec("UPDATE monitor SET remote_browser = null WHERE remote_browser = ?", [remoteBrowserID]);
 
-        await store.trash(bean);
+        await store.deleteModel(model);
     }
 }
 

@@ -26,7 +26,7 @@ Date: 2026-06-29
 - Moved legacy SQLite migration dependencies to dev-only ownership:
     - `@louislam/sqlite3`
     - `knex`
-    - `redbean-node`
+    - SQLite migration support remains dev-only and is not part of the application runtime image.
 
 MySQL/MariaDB monitor support remains as monitor functionality. It is not an application database backend.
 
