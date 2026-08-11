@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import {
     monitorPropertyColumns,
     monitorSnakePrecedenceColumns,
@@ -8,11 +6,18 @@ import {
 } from "@/db/schema/column-metadata";
 import { expectedTableColumns } from "@/db/schema/expected-schema";
 
-const monitorMappedProperties = new Set(Object.keys(monitorPropertyColumns));
+type ModelRow = Record<string, unknown>;
+type ModelInstance = ModelRow;
+type ModelConstructor = new () => ModelInstance;
+type TablePropertyColumns = Record<string, string>;
+type ExpectedColumns = Record<string, readonly string[]>;
+
+const monitorColumns: TablePropertyColumns = monitorPropertyColumns;
+const monitorMappedProperties = new Set(Object.keys(monitorColumns));
 
 // Generic camelCase -> snake_case aliases for tables whose model fields use camelCase.
-const tablePropertyColumns = {
-    monitor: monitorPropertyColumns,
+const tablePropertyColumns: Record<string, TablePropertyColumns> = {
+    monitor: monitorColumns,
     stat_daily: {
         pingMin: "ping_min",
         pingMax: "ping_max",
@@ -45,8 +50,14 @@ const tablePropertyColumns = {
         modifiedDate: "modified_date",
     },
 };
+const expectedColumns = expectedTableColumns as ExpectedColumns;
 
-function resolveMonitorField(row, property, column, { forStore = false } = {}) {
+function resolveMonitorField(
+    row: ModelRow,
+    property: string,
+    column: string,
+    { forStore = false }: { forStore?: boolean } = {}
+): unknown {
     const hasColumn = forStore ? row[column] !== undefined : row[column] !== undefined && row[column] !== null;
     const hasProperty = forStore ? row[property] !== undefined : row[property] !== undefined && row[property] !== null;
 
@@ -54,7 +65,7 @@ function resolveMonitorField(row, property, column, { forStore = false } = {}) {
         return undefined;
     }
 
-    let raw;
+    let raw: unknown;
     if (forStore) {
         const preferColumn = monitorSnakePrecedenceColumns.has(column);
         raw = preferColumn && hasColumn ? row[column] : hasProperty ? row[property] : row[column];
@@ -65,9 +76,9 @@ function resolveMonitorField(row, property, column, { forStore = false } = {}) {
     return normalizeMonitorColumnValue(column, raw);
 }
 
-function normalizeMonitorRow(row) {
-    const result = { ...row };
-    for (const [property, column] of Object.entries(monitorPropertyColumns)) {
+function normalizeMonitorRow(row: ModelRow): ModelRow {
+    const result: ModelRow = { ...row };
+    for (const [property, column] of Object.entries(monitorColumns)) {
         const value = resolveMonitorField(result, property, column);
         if (value !== undefined) {
             result[column] = value;
@@ -84,17 +95,19 @@ function normalizeMonitorRow(row) {
     return result;
 }
 
-function camelToSnake(key) {
+function camelToSnake(key: string): string {
     return key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 
-export function normalizeRowForStore(table, row) {
+export function normalizeRowForStore(table: string, row: ModelRow): ModelRow {
     // Drop internal model fields used only for serialization helpers.
-    const cleaned = Object.fromEntries(Object.entries(row).filter(([key]) => !key.startsWith("_")));
+    const cleaned: ModelRow = Object.fromEntries(Object.entries(row).filter(([key]) => !key.startsWith("_")));
 
     if (table === "monitor") {
-        const result = Object.fromEntries(Object.entries(cleaned).filter(([key]) => !monitorMappedProperties.has(key)));
-        for (const [property, column] of Object.entries(monitorPropertyColumns)) {
+        const result: ModelRow = Object.fromEntries(
+            Object.entries(cleaned).filter(([key]) => !monitorMappedProperties.has(key))
+        );
+        for (const [property, column] of Object.entries(monitorColumns)) {
             const value = resolveMonitorField(cleaned, property, column, { forStore: true });
             if (value !== undefined) {
                 result[column] = value;
@@ -103,9 +116,9 @@ export function normalizeRowForStore(table, row) {
         return result;
     }
 
-    const propertyColumns = tablePropertyColumns[table] || {};
-    const allowed = expectedTableColumns[table];
-    const result = {};
+    const propertyColumns = tablePropertyColumns[table] ?? {};
+    const allowed = expectedColumns[table];
+    const result: ModelRow = {};
     for (const [key, value] of Object.entries(cleaned)) {
         if (propertyColumns[key]) {
             const column = propertyColumns[key];
@@ -129,7 +142,7 @@ export function normalizeRowForStore(table, row) {
     return result;
 }
 
-export function hydrateModelFromRow(Model, table, row = {}) {
+export function hydrateModelFromRow(Model: ModelConstructor, table: string, row: ModelRow = {}): ModelInstance {
     const model = new Model();
     Object.assign(model, table === "monitor" ? normalizeMonitorRow(row) : row);
     if (table === "heartbeat") {

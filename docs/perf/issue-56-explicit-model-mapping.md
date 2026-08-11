@@ -1,4 +1,4 @@
-# Issue #56 explicit model mapping performance report
+# Issue #56 explicit model mapping historical performance report
 
 Date: 2026-08-11
 
@@ -7,11 +7,11 @@ Date: 2026-08-11
 | Baseline (`origin/master`) | `64db9070c6ad4973f1fc50006ebdb72af5a1fe5a` |
 | Candidate                  | `ca7b6fe96356c745656a040f508b1fb980f5ded7` |
 
-This report covers the final explicit per-store model mapping implementation for issue #56. Measurements were taken on the same host and with the same Bun/build configuration for both revisions. Raw measurement artifacts are intentionally not committed.
+Status: historical QA record for candidate `ca7b6fe96356c745656a040f508b1fb980f5ded7`. These measurements are not final results for the current branch; fresh baseline/current-candidate measurements are required after QA. Measurements were taken on the same host and with the same Bun/build configuration for both revisions. Raw measurement artifacts are intentionally not committed.
 
-## Method and reproduction
+## Historical method and provenance
 
-For each revision:
+The historical run used the following steps for each revision:
 
 ```bash
 git switch --detach "$REVISION"
@@ -19,7 +19,7 @@ bun install --frozen-lockfile
 bun run build
 ```
 
-Compiled startup measurements used five fresh trials, a fresh data directory per trial, a 1,000 ms warm-up, existing HTTP readiness, external process RSS in KiB, and macOS physical footprint in bytes. The repository harness can reproduce the compiled variant without a fixed artifact path:
+Compiled startup measurements used five fresh trials, a fresh data directory per trial, a 1,000 ms warm-up, existing HTTP readiness, external process RSS in KiB, and macOS physical footprint in bytes. The historical compiled run used the repository harness without a fixed artifact path:
 
 ```bash
 ARTIFACT_DIR="$(mktemp -d)"
@@ -33,7 +33,7 @@ rm -rf "$ARTIFACT_DIR"
 
 Closure counts used `Bun.build` with the production server entrypoint, `target: "bun"`, and `metafile: true`. Input and output counts are the lengths of the metafile input/output maps; byte totals are the sums of their byte sizes. The backend subset filters inputs to `src/server/` and `src/db/`.
 
-Focused validation was run with the repository's Bun commands:
+The following focused command is the historical command record:
 
 ```bash
 bun run lint
@@ -52,6 +52,8 @@ bun test \
   test/backend-test/user-resources-injection.test.ts
 ```
 
+The commands above are retained as provenance for the historical run and are not a reproducibility claim for the current branch after subsequent renames.
+
 ## Bun metafile closure
 
 | Closure                          |   Baseline |  Candidate |  Delta |
@@ -63,7 +65,7 @@ bun test \
 | `src/server/` + `src/db/` inputs |        227 |        227 |      0 |
 | `src/server/` + `src/db/` bytes  |  1,416,581 |  1,415,310 | -1,271 |
 
-The candidate does not expand the compiled input or output closure. The small byte reductions are consistent with removing the process-global registration compatibility path.
+In this historical comparison, the candidate did not expand the compiled input or output closure. The small byte reductions are consistent with removing the process-global registration compatibility path.
 
 ## Compiled startup RSS
 
@@ -74,7 +76,7 @@ RSS values are external process measurements in KiB. Variance is sample variance
 | Baseline  | 69,296; 70,016; 70,000; 69,952; 69,792 | 69,952 | 69,811.20 |       90,803.20 |   301.34 |    720 |
 | Candidate | 64,960; 69,824; 69,872; 70,032; 69,088 | 69,824 | 68,755.20 |    4,633,523.20 | 2,152.56 |  5,072 |
 
-The median delta is **-128 KiB (-0.18%)**. The candidate's larger spread and variance make the median difference too small to treat as a performance gain; there is no measured startup RSS regression beyond observed run-to-run noise.
+The historical median delta was **-128 KiB (-0.18%)**. The candidate's larger spread and variance make the median difference too small to treat as a performance gain; this comparison showed no startup RSS regression beyond observed run-to-run noise.
 
 | Compiled startup metric   |     Baseline |    Candidate |               Delta |
 | ------------------------- | -----------: | -----------: | ------------------: |
@@ -83,10 +85,10 @@ The median delta is **-128 KiB (-0.18%)**. The candidate's larger spread and var
 
 ## Validation and manual smoke
 
-- Frozen install and production build passed for baseline and candidate.
-- Focused behavioral validation passed: 86 tests, 0 failures, 1,158 assertions. This includes typed creation, import-order independence, fresh explicit stores, per-store constructor/model/persistence isolation, unknown-property rejection without schema mutation, and supported-baseline upgrade behavior.
-- Lint passed with only existing warnings and deprecation notices.
-- Compiled manual smoke passed: `/api/entry-page` returned HTTP 200 with 37 bytes; `/setup` returned HTTP 200 with 1,196 bytes; SQLite `PRAGMA integrity_check` returned `ok`; the settings table contained 2 rows; SIGTERM produced exit code 0.
+- Historical frozen install and production build passed for baseline and candidate.
+- Historical focused behavioral validation passed: 86 tests, 0 failures, 1,158 assertions. This includes typed creation, import-order independence, fresh explicit stores, per-store constructor/model/persistence isolation, unknown-property rejection without schema mutation, and supported-baseline upgrade behavior.
+- Historical lint passed with only existing warnings and deprecation notices.
+- Historical compiled manual smoke passed: `/api/entry-page` returned HTTP 200 with 37 bytes; `/setup` returned HTTP 200 with 1,196 bytes; SQLite `PRAGMA integrity_check` returned `ok`; the settings table contained 2 rows; SIGTERM produced exit code 0.
 
 Representative smoke commands are:
 
@@ -109,4 +111,4 @@ rm -rf "$DATA_DIR"
 - The full local backend run reported 333 passed, 6 skipped, 74 failed, and 2 errors; the failures were blocked by port/listener collisions in the environment.
 - The local E2E run did not complete because the Playwright `config.webServer` readiness wait reached its 60-second timeout.
 
-These limitations were recorded rather than filtered or retried as implementation results. The compiled smoke, focused behavior, closure, and paired baseline/candidate measurements provide the issue-specific evidence; the measured performance outcome is no regression.
+These limitations were recorded rather than filtered or retried as implementation results. The compiled smoke, focused behavior, closure, and paired baseline/candidate measurements provide historical issue-specific evidence only; they do not replace fresh QA measurements for the current branch.
