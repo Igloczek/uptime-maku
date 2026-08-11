@@ -39,7 +39,7 @@ The following focused command is the historical command record:
 bun run lint
 bun run build
 bun test \
-  test/backend-test/sqlite-store.test.ts \
+  test/backend-test/sqlite-core.test.ts \
   test/backend-test/composition-root.test.ts \
   test/backend-test/schema.test.ts \
   test/backend-test/upgrade.test.ts \
