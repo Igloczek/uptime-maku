@@ -1,25 +1,78 @@
-# Issue #56 explicit model mapping historical performance report
+# Issue #56 explicit model mapping performance report
 
 Date: 2026-08-11
 
-| Revision                   | SHA                                        |
-| -------------------------- | ------------------------------------------ |
-| Baseline (`origin/master`) | `64db9070c6ad4973f1fc50006ebdb72af5a1fe5a` |
-| Candidate                  | `ca7b6fe96356c745656a040f508b1fb980f5ded7` |
+## Revision identity
 
-Status: historical QA record for candidate `ca7b6fe96356c745656a040f508b1fb980f5ded7`. These measurements are not final results for the current branch; fresh baseline/current-candidate measurements are required after QA. Measurements were taken on the same host and with the same Bun/build configuration for both revisions. Raw measurement artifacts are intentionally not committed.
+| Revision                                | SHA                                        |
+| --------------------------------------- | ------------------------------------------ |
+| Baseline                                | `64db9070c6ad4973f1fc50006ebdb72af5a1fe5a` |
+| Candidate implementation measured by QA | `a7fff97e9bc5e3944f1ffebec700f6a933e13eaf` |
 
-## Historical method and provenance
+All candidate measurements in this report were taken from the implementation at `a7fff97e9bc5e3944f1ffebec700f6a933e13eaf`. The commit that records this document is a later report-only commit; it changes no implementation and is not a separately measured revision. Raw QA artifacts remain outside the repository and are not committed.
 
-The historical run used the following steps for each revision:
+## Method and reproduction
+
+For each revision, QA used a separate checkout and ran:
 
 ```bash
 git switch --detach "$REVISION"
 bun install --frozen-lockfile
+bun run lint
 bun run build
 ```
 
-Compiled startup measurements used five fresh trials, a fresh data directory per trial, a 1,000 ms warm-up, existing HTTP readiness, external process RSS in KiB, and macOS physical footprint in bytes. The historical compiled run used the repository harness without a fixed artifact path:
+The focused behavior commands used the historical baseline filename and the candidate filename respectively:
+
+```bash
+# baseline 64db9070c6ad4973f1fc50006ebdb72af5a1fe5a
+bun test \
+  test/backend-test/sqlite-core.test.ts \
+  test/backend-test/real-browser-monitor-lifecycle.test.ts
+
+# candidate a7fff97e9bc5e3944f1ffebec700f6a933e13eaf
+bun test \
+  test/backend-test/sqlite-store.test.ts \
+  test/backend-test/real-browser-monitor-lifecycle.test.ts
+```
+
+Candidate-wide checks were:
+
+```bash
+bun run test:backend
+bun run test-e2e
+```
+
+The underlying E2E command is `playwright test --config ./config/playwright.config.ts`.
+
+Closure was measured with the production server entrypoint and a Bun-targeted metafile build. The required `target: "bun"` is explicit:
+
+```bash
+bun -e '
+const result = await Bun.build({
+  entrypoints: ["src/server/server.ts"],
+  bundle: true,
+  format: "esm",
+  splitting: true,
+  target: "bun",
+  write: false,
+  metafile: true,
+});
+if (!result.success) throw new Error("Bun.build failed");
+const inputs = Object.values(result.metafile.inputs);
+const outputs = Object.values(result.metafile.outputs);
+console.log(JSON.stringify({
+  inputs: inputs.length,
+  inputBytes: inputs.reduce((total, item) => total + item.bytes, 0),
+  outputs: outputs.length,
+  outputBytes: outputs.reduce((total, item) => total + item.bytes, 0),
+}));
+'
+```
+
+An initial browser-target metafile attempt rejected Bun and Node built-ins. It is not a measurement; only the corrected Bun-targeted method above is used here. Binary size was measured from the compiled `uptime-maku` file; `dist` size is the sum of regular-file byte sizes under `dist/`.
+
+Compiled startup used `scripts/benchmark/startup-memory.ts` with the `compiled-binary` variant, five trials, a fresh data directory per trial, existing `GET /` readiness, and a 1,000 ms warm-up:
 
 ```bash
 ARTIFACT_DIR="$(mktemp -d)"
@@ -31,84 +84,58 @@ bun scripts/benchmark/startup-memory.ts \
 rm -rf "$ARTIFACT_DIR"
 ```
 
-Closure counts used `Bun.build` with the production server entrypoint, `target: "bun"`, and `metafile: true`. Input and output counts are the lengths of the metafile input/output maps; byte totals are the sums of their byte sizes. The backend subset filters inputs to `src/server/` and `src/db/`.
-
-The following focused command is the historical command record:
-
-```bash
-bun run lint
-bun run build
-bun test \
-  test/backend-test/sqlite-core.test.ts \
-  test/backend-test/composition-root.test.ts \
-  test/backend-test/schema.test.ts \
-  test/backend-test/upgrade.test.ts \
-  test/backend-test/runtime-registry-callsite.test.ts \
-  test/backend-test/monitor-runtime-loading.test.ts \
-  test/backend-test/heartbeat-data-plane.test.ts \
-  test/backend-test/status-page.test.ts \
-  test/backend-test/auth-settings-injection.test.ts \
-  test/backend-test/bun-websocket-server.test.ts \
-  test/backend-test/user-resources-injection.test.ts
-```
-
-The commands above are retained as provenance for the historical run and are not a reproducibility claim for the current branch after subsequent renames.
+The measurements used external process RSS in KiB and macOS physical footprint in bytes on macOS arm64 with Bun 1.3.14.
 
 ## Bun metafile closure
 
-| Closure                          |   Baseline |  Candidate |  Delta |
-| -------------------------------- | ---------: | ---------: | -----: |
-| Bun inputs                       |      3,049 |      3,049 |      0 |
-| Bun outputs                      |        196 |        196 |      0 |
-| Bun input bytes                  | 32,778,040 | 32,776,769 | -1,271 |
-| Bun output bytes                 | 11,409,866 | 11,409,338 |   -528 |
-| `src/server/` + `src/db/` inputs |        227 |        227 |      0 |
-| `src/server/` + `src/db/` bytes  |  1,416,581 |  1,415,310 | -1,271 |
+| Closure      |   Baseline |  Candidate | Delta |
+| ------------ | ---------: | ---------: | ----: |
+| Inputs       |      3,049 |      3,049 |     0 |
+| Input bytes  | 32,778,040 | 32,778,621 |  +581 |
+| Outputs      |        196 |        196 |     0 |
+| Output bytes | 11,409,920 | 11,409,833 |   -87 |
 
-In this historical comparison, the candidate did not expand the compiled input or output closure. The small byte reductions are consistent with removing the process-global registration compatibility path.
+The candidate keeps the same input and output counts and reduces total output bytes by 87. The 581-byte input increase does not expand the output closure.
 
-## Compiled startup RSS
+| Artifact               |     Baseline |    Candidate | Delta |
+| ---------------------- | -----------: | -----------: | ----: |
+| Compiled `uptime-maku` | 95,628,002 B | 95,628,002 B |     0 |
+| `dist/` regular files  |  9,756,672 B |  9,756,672 B |     0 |
 
-RSS values are external process measurements in KiB. Variance is sample variance in KiB²; SD is sample standard deviation in KiB; spread is maximum minus minimum across the five trials.
+## Compiled startup
 
-| Revision  | Samples (KiB)                          | Median |      Mean | Sample variance |       SD | Spread |
-| --------- | -------------------------------------- | -----: | --------: | --------------: | -------: | -----: |
-| Baseline  | 69,296; 70,016; 70,000; 69,952; 69,792 | 69,952 | 69,811.20 |       90,803.20 |   301.34 |    720 |
-| Candidate | 64,960; 69,824; 69,872; 70,032; 69,088 | 69,824 | 68,755.20 |    4,633,523.20 | 2,152.56 |  5,072 |
+| Metric                    |     Baseline |    Candidate |      Delta |
+| ------------------------- | -----------: | -----------: | ---------: |
+| Readiness median          |       106 ms |       106 ms |       0 ms |
+| RSS median                |   69,392 KiB |   69,152 KiB |   -240 KiB |
+| RSS spread                |    1,056 KiB |    4,848 KiB | +3,792 KiB |
+| Physical footprint median | 27,232,832 B | 27,380,224 B | +147,392 B |
 
-The historical median delta was **-128 KiB (-0.18%)**. The candidate's larger spread and variance make the median difference too small to treat as a performance gain; this comparison showed no startup RSS regression beyond observed run-to-run noise.
+Raw samples:
 
-| Compiled startup metric   |     Baseline |    Candidate |               Delta |
-| ------------------------- | -----------: | -----------: | ------------------: |
-| Readiness median          |       108 ms |       109 ms |               +1 ms |
-| Physical footprint median | 27,740,672 B | 27,576,832 B | -163,840 B (-0.59%) |
+| Metric                 | Baseline                                             | Candidate                                            |
+| ---------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+| Readiness (ms)         | `[2188, 106, 106, 105, 105]`                         | `[2010, 106, 106, 181, 106]`                         |
+| RSS (KiB)              | `[69200, 69040, 69392, 69952, 70096]`                | `[65120, 69328, 69152, 68944, 69968]`                |
+| Physical footprint (B) | `[27232832, 27167232, 27183680, 27707904, 27724352]` | `[26888704, 27511360, 27380224, 27232896, 27740736]` |
 
-## Validation and manual smoke
+The candidate RSS median is 240 KiB lower, but its wider spread and the trial-level variation make this a noise-level result rather than a measured gain. Physical footprint is likewise within observed run-to-run variation. There is no measured compiled-startup regression.
 
-- Historical frozen install and production build passed for baseline and candidate.
-- Historical focused behavioral validation passed: 86 tests, 0 failures, 1,158 assertions. This includes typed creation, import-order independence, fresh explicit stores, per-store constructor/model/persistence isolation, unknown-property rejection without schema mutation, and supported-baseline upgrade behavior.
-- Historical lint passed with only existing warnings and deprecation notices.
-- Historical compiled manual smoke passed: `/api/entry-page` returned HTTP 200 with 37 bytes; `/setup` returned HTTP 200 with 1,196 bytes; SQLite `PRAGMA integrity_check` returned `ok`; the settings table contained 2 rows; SIGTERM produced exit code 0.
+## Validation and smoke results
 
-Representative smoke commands are:
+- Frozen install and production build passed for both baseline and candidate.
+- Candidate lint passed.
+- Focused behavior passed: 63 tests, 0 failures, 828 assertions. Baseline passed 61 tests, 0 failures, 802 assertions.
+- Candidate full backend passed: 465 tests, 15 skipped, 0 failures, 4,351 assertions.
+- Candidate E2E passed: 40 tests, 0 failures.
+- Acceptance scans for legacy persistence names/APIs and obsolete tracked filenames returned zero matches.
 
-```bash
-DATA_DIR="$(mktemp -d)"
-PORT=3001
-./uptime-maku --host=127.0.0.1 --port="$PORT" --data-dir="$DATA_DIR" &
-PID=$!
-curl -fsS -o /dev/null -w '%{http_code} %{size_download}\n' "http://127.0.0.1:$PORT/api/entry-page"
-curl -fsS -o /dev/null -w '%{http_code} %{size_download}\n' "http://127.0.0.1:$PORT/setup"
-DB="$DATA_DIR/kuma.db" bun -e 'import { Database } from "bun:sqlite"; const db = new Database(process.env.DB); console.log(db.query("PRAGMA integrity_check").get()); console.log(db.query("SELECT COUNT(*) AS count FROM setting").get()); db.close();'
-kill -TERM "$PID"
-wait "$PID"
-rm -rf "$DATA_DIR"
-```
+Compiled smoke started each binary against a fresh data directory, queried `/` and `/api/status-page/heartbeat/default`, checked `PRAGMA integrity_check`, counted settings before and after a clean restart, and waited for exit. Both baseline and candidate returned HTTP 200 on both routes, `integrity_check` `ok`, settings count 2 before and after restart, clean exit code 0, and a fresh data-directory footprint of 262,336 B.
 
-## Local limitations
+Source smoke returned HTTP 200, `integrity_check` `ok`, and clean exit code 0.
 
-- The HTTP-client tests failed before test execution on both baseline and candidate because the IPv6 `::1` port-0 fixture could not bind (`EADDRINUSE`). This is an identical environment limitation, not a candidate-only failure.
-- The full local backend run reported 333 passed, 6 skipped, 74 failed, and 2 errors; the failures were blocked by port/listener collisions in the environment.
-- The local E2E run did not complete because the Playwright `config.webServer` readiness wait reached its 60-second timeout.
+Manual real-browser flow passed: setup and login, create an HTTP monitor, edit its name, observe a heartbeat, cleanly restart, confirm the edited monitor and history persisted, then delete the monitor.
 
-These limitations were recorded rather than filtered or retried as implementation results. The compiled smoke, focused behavior, closure, and paired baseline/candidate measurements provide historical issue-specific evidence only; they do not replace fresh QA measurements for the current branch.
+## Limitations
+
+During the deliberate restart flow, QA observed transient `runtime.platform` TypeErrors and expected WebSocket disconnects. `EditMonitor.vue` was unchanged relative to baseline, and the complete user flow passed. These runtime messages do not change the measured results above.
