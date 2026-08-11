@@ -18,8 +18,13 @@ For each revision, QA used a separate checkout and ran:
 ```bash
 git switch --detach "$REVISION"
 bun install --frozen-lockfile
-bun run lint
 bun run build
+```
+
+The lint gate ran only on the candidate:
+
+```bash
+bun run lint
 ```
 
 The focused behavior commands used the historical baseline filename and the candidate filename respectively:
