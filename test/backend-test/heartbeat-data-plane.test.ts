@@ -21,6 +21,7 @@ import { Prometheus } from "@/server/prometheus";
 import { handleApiRequest } from "@/server/routers/api-router";
 import { chartSocketHandler } from "@/server/socket-handlers/chart-socket-handler";
 import { clearSocketHandler } from "@/server/socket-handlers/clear-socket-handler";
+import { monitorSocketHandler } from "@/server/socket-handlers/monitor-socket-handler";
 import { createResponseCache } from "@/server/bun-response";
 import { DOWN, MAINTENANCE, PENDING, UP } from "@/constants";
 
@@ -304,6 +305,88 @@ describe("heartbeat data plane", () => {
         expect(response).toEqual({ ok: true });
         expect(await data.list(1)).toEqual([]);
         expect(lifecycle).toEqual(["stop", ["restart", 1, 1], "stop", ["restart", 1, 1]]);
+    });
+
+    test("keeps monitor tag and important-heartbeat socket contracts", async () => {
+        const { data, responseCache, server, settings, store } = await createRuntime("monitor-socket");
+        const handlers = {};
+        const socket = {
+            userID: 1,
+            on: (event, handler) => {
+                handlers[event] = handler;
+            },
+        };
+        server.sendUpdateMonitorIntoList = async () => {};
+        monitorSocketHandler(
+            socket,
+            store,
+            server,
+            settings,
+            data,
+            responseCache,
+            async () => {},
+            async () => {},
+            async () => {}
+        );
+
+        await data.write(heartbeat(store, { msg: "important-event", time: store.isoDateTimeMillis(dayjs.utc()) }));
+        let response;
+        await handlers.addTag({ name: "production", color: "#123456" }, (result) => {
+            response = result;
+        });
+        expect(response.ok).toBe(true);
+        const tagID = response.tag.id;
+
+        await handlers.addMonitorTag(tagID, 1, "primary", (result) => {
+            response = result;
+        });
+        expect(response).toEqual({ ok: true, msg: "successAdded", msgi18n: true });
+
+        await handlers.getTags((result) => {
+            response = result;
+        });
+        expect(response).toMatchObject({ ok: true, tags: [{ id: tagID, name: "production", color: "#123456" }] });
+
+        await handlers.editTag({ id: tagID, name: "critical", color: "#654321" }, (result) => {
+            response = result;
+        });
+        expect(response).toMatchObject({ ok: true, tag: { id: tagID, name: "critical", color: "#654321" } });
+
+        await handlers.editMonitorTag(tagID, 1, "primary-edited", (result) => {
+            response = result;
+        });
+        expect(response).toEqual({ ok: true, msg: "successEdited", msgi18n: true });
+        expect(
+            await store.getCell("SELECT value FROM monitor_tag WHERE tag_id = ? AND monitor_id = ?", [tagID, 1])
+        ).toBe("primary-edited");
+
+        await handlers.getMonitorBeats(1, 24, (result) => {
+            response = result;
+        });
+        expect(response).toMatchObject({ ok: true });
+        expect(response.data.map((beat) => beat.msg)).toEqual(["important-event"]);
+
+        await handlers.monitorImportantHeartbeatListCount(1, (result) => {
+            response = result;
+        });
+        expect(response).toEqual({ ok: true, count: 1 });
+
+        await handlers.monitorImportantHeartbeatListPaged(1, 0, 10, (result) => {
+            response = result;
+        });
+        expect(response.ok).toBe(true);
+        expect(response.data.map((beat) => beat.msg)).toEqual(["important-event"]);
+
+        await handlers.deleteMonitorTag(tagID, 1, "primary-edited", (result) => {
+            response = result;
+        });
+        expect(response).toEqual({ ok: true, msg: "successDeleted", msgi18n: true });
+
+        await handlers.deleteTag(tagID, (result) => {
+            response = result;
+        });
+        expect(response).toEqual({ ok: true, msg: "successDeleted", msgi18n: true });
+        expect(await store.getCell("SELECT COUNT(*) FROM tag WHERE id = ?", [tagID])).toBe(0);
     });
 
     test("filters recent heartbeat reads by the authenticated owner", async () => {
