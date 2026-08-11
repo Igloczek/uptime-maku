@@ -38,8 +38,18 @@ Focused validation was run with the repository's Bun commands:
 ```bash
 bun run lint
 bun run build
-bun test test/backend-test/sqlite-core.test.ts test/backend-test/composition-root.test.ts test/backend-test/upgrade.test.ts test/backend-test/db-lifecycle-injection.test.ts
-bun test test/backend-test/schema.test.ts test/backend-test/status-page.test.ts
+bun test \
+  test/backend-test/sqlite-core.test.ts \
+  test/backend-test/composition-root.test.ts \
+  test/backend-test/schema.test.ts \
+  test/backend-test/upgrade.test.ts \
+  test/backend-test/runtime-registry-callsite.test.ts \
+  test/backend-test/monitor-runtime-loading.test.ts \
+  test/backend-test/heartbeat-data-plane.test.ts \
+  test/backend-test/status-page.test.ts \
+  test/backend-test/auth-settings-injection.test.ts \
+  test/backend-test/bun-websocket-server.test.ts \
+  test/backend-test/user-resources-injection.test.ts
 ```
 
 ## Bun metafile closure
