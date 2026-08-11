@@ -2,6 +2,7 @@
 
 import { afterEach, beforeAll, beforeEach, describe, expect, jest, mock, spyOn, test } from "bun:test";
 import { RemoteBrowser } from "@/server/remote-browser";
+import { MODEL_MAPPING } from "@/server/model-registry";
 import childProcess from "node:child_process";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
@@ -36,7 +37,7 @@ beforeAll(async () => {
 let settings;
 
 beforeEach(() => {
-    store = new StoreClass();
+    store = new StoreClass({ modelMapping: MODEL_MAPPING });
     settings = { get: async () => configuredExecutable };
     browserRuntime = new RealBrowserMonitorType(store, settings);
 });
@@ -153,7 +154,7 @@ function successfulBrowser(overrides = {}) {
 
 describe("real-browser monitor lifecycle", () => {
     test("two server registries do not share a remote browser owner", async () => {
-        const secondStore = new StoreClass();
+        const secondStore = new StoreClass({ modelMapping: MODEL_MAPPING });
         const firstBrowser = successfulBrowser();
         const secondBrowser = successfulBrowser();
         const remote = spyOn(RemoteBrowser, "get").mockResolvedValue({
