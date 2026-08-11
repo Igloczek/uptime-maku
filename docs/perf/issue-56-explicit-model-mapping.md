@@ -51,11 +51,13 @@ Closure was measured with the production server entrypoint and a Bun-targeted me
 bun -e '
 const result = await Bun.build({
   entrypoints: ["src/server/server.ts"],
-  bundle: true,
+  target: "bun",
+  external: ["chromium-bidi/*", "deasync"],
   format: "esm",
   splitting: true,
-  target: "bun",
-  write: false,
+  define: { "process.env.NODE_ENV": "production" },
+  minify: true,
+  sourcemap: "linked",
   metafile: true,
 });
 if (!result.success) throw new Error("Bun.build failed");
@@ -70,7 +72,7 @@ console.log(JSON.stringify({
 '
 ```
 
-An initial browser-target metafile attempt rejected Bun and Node built-ins. It is not a measurement; only the corrected Bun-targeted method above is used here. Binary size was measured from the compiled `uptime-maku` file; `dist` size is the sum of regular-file byte sizes under `dist/`.
+The closure values below are the result of this corrected Bun-targeted method.
 
 Compiled startup used `scripts/benchmark/startup-memory.ts` with the `compiled-binary` variant, five trials, a fresh data directory per trial, existing `GET /` readiness, and a 1,000 ms warm-up:
 
@@ -96,11 +98,6 @@ The measurements used external process RSS in KiB and macOS physical footprint i
 | Output bytes | 11,409,920 | 11,409,833 |   -87 |
 
 The candidate keeps the same input and output counts and reduces total output bytes by 87. The 581-byte input increase does not expand the output closure.
-
-| Artifact               |     Baseline |    Candidate | Delta |
-| ---------------------- | -----------: | -----------: | ----: |
-| Compiled `uptime-maku` | 95,628,002 B | 95,628,002 B |     0 |
-| `dist/` regular files  |  9,756,672 B |  9,756,672 B |     0 |
 
 ## Compiled startup
 
