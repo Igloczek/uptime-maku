@@ -7,6 +7,7 @@ import https from "node:https";
 import net from "node:net";
 import path from "node:path";
 import httpClient from "@/server/http-client";
+import { checkHttpMonitor } from "@/server/monitor-http";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
 import "@/server/model-registry";
 
@@ -394,6 +395,49 @@ describe("fetch HTTP client", () => {
         });
 
         expect(res.data.includes("expected-keyword")).toBe(true);
+    });
+
+    test("preserves the HTTP deadline and ping origin across the lazy boundary", async () => {
+        const monitor = store.convertToBean("monitor", {
+            type: "http",
+            url: `${baseUrl}/ok`,
+            method: "GET",
+            timeout: 1,
+            maxredirects: 0,
+            accepted_statuscodes_json: '["200-299"]',
+            auth_method: null,
+            proxy_id: null,
+            ignore_tls: false,
+            ip_family: null,
+        });
+        const bean = {};
+        const startTime = Date.now();
+        await Bun.sleep(40);
+
+        await checkHttpMonitor(
+            monitor,
+            bean,
+            store,
+            { notificationProviderRegistry: {}, settings: {} },
+            startTime,
+            startTime + 1000
+        );
+
+        expect(bean.status).toBe(1);
+        expect(bean.ping).toBeGreaterThanOrEqual(35);
+
+        const expiredStartTime = Date.now();
+        await Bun.sleep(25);
+        await expect(
+            checkHttpMonitor(
+                monitor,
+                {},
+                store,
+                { notificationProviderRegistry: {}, settings: {} },
+                expiredStartTime,
+                expiredStartTime + 10
+            )
+        ).rejects.toThrow("HTTP monitor timed out");
     });
 
     test("monitor rejects unsupported fetch transport settings explicitly", async () => {

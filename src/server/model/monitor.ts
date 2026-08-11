@@ -31,19 +31,16 @@ import {
     RESPONSE_BODY_LENGTH_MAX,
 } from "@/constants";
 import { flipStatus } from "@/util/status";
-import { checkStatusCode, encodeBase64 } from "@/server/http-utils";
+import { DockerHost } from "@/server/docker";
 import { getTotalClientInRoom } from "@/server/client-room";
-import { getOAuthClientCredentialsToken } from "@/server/oauth-client-credentials";
 import { BeanModel } from "@/server/bean-model";
 import { Notification } from "@/server/notification";
 import { demoMode } from "@/server/config";
-import { DockerHost } from "@/server/docker";
 import jwt from "@/server/jwt";
 import zlib from "node:zlib";
 import { promisify } from "node:util";
 import packageJson from "@/package-meta";
 import { clearResponseCache } from "@/server/bun-response";
-import { buildProxyFetchOption, resolveCoreHttpProxy } from "@/server/proxy-validation";
 import { writeErrorLog } from "@/server/error-log";
 
 const brotliCompress = promisify(zlib.brotliCompress);
@@ -573,202 +570,10 @@ class Monitor extends BeanModel {
                     bean.msg = "Monitor under maintenance";
                     bean.status = MAINTENANCE;
                 } else if (this.type === "http" || this.type === "keyword" || this.type === "json-query") {
-                    // Do not do any queries/high loading things before the "bean.ping"
-                    let startTime = dayjs().valueOf();
+                    const startTime = dayjs().valueOf();
                     const deadline = startTime + this.timeout * 1000;
-                    const remainingTimeout = () => {
-                        const remaining = deadline - dayjs().valueOf();
-                        if (remaining <= 0) {
-                            throw new Error("HTTP monitor timed out");
-                        }
-                        return remaining;
-                    };
-
-                    // HTTP basic auth
-                    let basicAuthHeader = {};
-                    if (this.auth_method === "basic") {
-                        basicAuthHeader = {
-                            Authorization: "Basic " + encodeBase64(this.basic_auth_user, this.basic_auth_pass),
-                        };
-                    }
-
-                    // Bearer token auth
-                    let bearerAuthHeader = {};
-                    if (this.auth_method === "bearer") {
-                        bearerAuthHeader = {
-                            Authorization: "Bearer " + this.bearer_token,
-                        };
-                    }
-
-                    // OIDC: Basic client credential flow.
-                    // Additional grants might be implemented in the future
-                    let oauth2AuthHeader = {};
-                    if (this.auth_method === "oauth2-cc") {
-                        try {
-                            if (
-                                this.oauthAccessToken === undefined ||
-                                new Date(this.oauthAccessToken.expires_at * 1000) <= new Date()
-                            ) {
-                                this.oauthAccessToken =
-                                    await this.makeOAuthClientCredentialsRequest(remainingTimeout());
-                            }
-                            oauth2AuthHeader = {
-                                Authorization:
-                                    this.oauthAccessToken.token_type + " " + this.oauthAccessToken.access_token,
-                            };
-                        } catch (e) {
-                            throw new Error("The oauth config is invalid. " + e.message);
-                        }
-                    }
-
-                    let contentType = null;
-                    let bodyValue = null;
-
-                    if (this.body && typeof this.body === "string" && this.body.trim().length > 0) {
-                        if (!this.httpBodyEncoding || this.httpBodyEncoding === "json") {
-                            try {
-                                bodyValue = JSON.parse(this.body);
-                                contentType = "application/json";
-                            } catch (e) {
-                                throw new Error("Your JSON body is invalid. " + e.message);
-                            }
-                        } else if (this.httpBodyEncoding === "form") {
-                            bodyValue = this.body;
-                            contentType = "application/x-www-form-urlencoded";
-                        } else if (this.httpBodyEncoding === "xml") {
-                            bodyValue = this.body;
-                            contentType = "text/xml; charset=utf-8";
-                        }
-                    }
-
-                    // HTTP client options
-                    const options = {
-                        url: this.url,
-                        method: (this.method || "get").toLowerCase(),
-                        timeout: remainingTimeout(),
-                        headers: {
-                            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-                            ...(contentType ? { "Content-Type": contentType } : {}),
-                            ...basicAuthHeader,
-                            ...bearerAuthHeader,
-                            ...oauth2AuthHeader,
-                            ...(this.headers ? JSON.parse(this.headers) : {}),
-                        },
-                        maxRedirects: this.maxredirects,
-                        validateStatus: (status) => {
-                            return checkStatusCode(status, this.getAcceptedStatuscodes());
-                        },
-                    };
-
-                    if (bodyValue) {
-                        options.data = bodyValue;
-                    }
-
-                    if (this.cacheBust) {
-                        const randomFloatString = Math.random().toString(36);
-                        const cacheBust = randomFloatString.substring(2);
-                        options.params = {
-                            uptime_maku_cachebuster: cacheBust,
-                        };
-                    }
-
-                    log.debug("monitor", `[${this.name}] Prepare Options for fetch`);
-                    await this.assertFetchHttpTransportSupported(options, store);
-
-                    log.debug("monitor", `[${this.name}] Fetch Options prepared (proxy: ${Boolean(options.proxy)})`);
-                    log.debug("monitor", `[${this.name}] Fetch Request`);
-
-                    // Make Request
-                    let res = await this.makeHttpMonitorRequest(options, false, deadline);
-
-                    bean.msg = `${res.status} - ${res.statusText}`;
-                    bean.ping = dayjs().valueOf() - startTime;
-
-                    // Bun fetch does not expose peer certificates, so inspect TLS separately when needed.
-                    if (this.isEnabledExpiryNotification()) {
-                        try {
-                            const target = new URL(this.url);
-                            if (target.protocol === "https:") {
-                                const port = target.port ? Number(target.port) : 443;
-                                const { inspectRemoteCertificate } = await import("@/server/tls-cert");
-                                const inspected = await inspectRemoteCertificate(
-                                    target.hostname,
-                                    port,
-                                    remainingTimeout()
-                                );
-                                if (inspected) {
-                                    tlsInfo = inspected;
-                                    await this.handleTlsInfo(
-                                        tlsInfo,
-                                        server.notificationProviderRegistry,
-                                        server.settings,
-                                        store
-                                    );
-                                }
-                            }
-                        } catch (error) {
-                            log.debug("monitor", `[${this.name}] TLS certificate inspection skipped: ${error.message}`);
-                        }
-                    }
-
-                    // in the frontend, the save response is only shown if the saveErrorResponse is set
-                    if (this.getSaveResponse() && this.getSaveErrorResponse()) {
-                        await this.saveResponseData(bean, res.data);
-                    }
-
-                    // eslint-disable-next-line eqeqeq
-                    if (process.env.UPTIME_MAKU_LOG_RESPONSE_BODY_MONITOR_ID == this.id) {
-                        log.info("monitor", res.data);
-                    }
-
-                    if (this.type === "http") {
-                        bean.status = UP;
-                    } else if (this.type === "keyword") {
-                        let data = res.data;
-
-                        // Convert to string for object/array
-                        if (typeof data !== "string") {
-                            data = JSON.stringify(data);
-                        }
-
-                        let keywordFound = data.includes(this.keyword);
-                        if (keywordFound === !this.isInvertKeyword()) {
-                            bean.msg += ", keyword " + (keywordFound ? "is" : "not") + " found";
-                            bean.status = UP;
-                        } else {
-                            data = data.replace(/<[^>]*>?|[\n\r]|\s+/gm, " ").trim();
-                            if (data.length > 50) {
-                                data = data.substring(0, 47) + "...";
-                            }
-                            throw new Error(
-                                bean.msg +
-                                    ", but keyword is " +
-                                    (keywordFound ? "present" : "not") +
-                                    " in [" +
-                                    data +
-                                    "]"
-                            );
-                        }
-                    } else if (this.type === "json-query") {
-                        let data = res.data;
-
-                        const { evaluateJsonQuery } = await import("@/server/json-query");
-                        const { status, response } = await evaluateJsonQuery(
-                            data,
-                            this.jsonPath,
-                            this.jsonPathOperator,
-                            this.expectedValue
-                        );
-
-                        if (status) {
-                            bean.status = UP;
-                            bean.msg = `JSON query passes (comparing ${response} ${this.jsonPathOperator} ${this.expectedValue})`;
-                        } else {
-                            throw new Error(
-                                `JSON query does not pass (comparing ${response} ${this.jsonPathOperator} ${this.expectedValue})`
-                            );
-                        }
-                    }
+                    const { checkHttpMonitor } = await import("@/server/monitor-http");
+                    tlsInfo = await checkHttpMonitor(this, bean, store, server, startTime, deadline);
                 } else if (this.type === "ping") {
                     const { ping } = await import("@/server/ping");
                     bean.ping = await ping(
@@ -1309,28 +1114,8 @@ class Monitor extends BeanModel {
      * @returns {Promise<void>}
      */
     async assertFetchHttpTransportSupported(options = {}, store = this.__store) {
-        if (this.auth_method === "ntlm") {
-            throw new Error("NTLM monitor authentication is not supported by the Bun fetch HTTP client");
-        }
-
-        if (this.auth_method === "mtls") {
-            throw new Error("mTLS monitor authentication is not supported by the Bun fetch HTTP client");
-        }
-
-        if (this.ipFamily === "ipv4" || this.ipFamily === "ipv6") {
-            throw new Error("Forced IP family selection is not supported by the Bun fetch HTTP client");
-        }
-
-        // TLS cert expiry is handled by a separate inspectRemoteCertificate() pass.
-
-        const proxy = await resolveCoreHttpProxy(store, this.type, this.proxy_id, this.user_id, this.getIgnoreTls());
-        if (proxy) {
-            options.proxy = buildProxyFetchOption(proxy);
-        }
-
-        if (this.getIgnoreTls()) {
-            options.rejectUnauthorized = false;
-        }
+        const { assertFetchHttpTransportSupported } = await import("@/server/monitor-http");
+        return assertFetchHttpTransportSupported(this, options, store);
     }
 
     /**
@@ -1341,34 +1126,8 @@ class Monitor extends BeanModel {
      * @returns {object} HTTP response
      */
     async makeHttpMonitorRequest(options, finalCall = false, deadline = Date.now() + options.timeout) {
-        try {
-            return await httpClient.request(options);
-        } catch (error) {
-            /**
-             * Make a single attempt to obtain an new access token in the event that
-             * the recent api request failed for authentication purposes
-             */
-            if (this.auth_method === "oauth2-cc" && error.response?.status === 401 && !finalCall) {
-                let remaining = deadline - Date.now();
-                if (remaining <= 0) {
-                    throw new Error("HTTP monitor timed out while refreshing OAuth credentials");
-                }
-                this.oauthAccessToken = await this.makeOAuthClientCredentialsRequest(remaining);
-                let oauth2AuthHeader = {
-                    Authorization: this.oauthAccessToken.token_type + " " + this.oauthAccessToken.access_token,
-                };
-                options.headers = { ...options.headers, ...oauth2AuthHeader };
-                remaining = deadline - Date.now();
-                if (remaining <= 0) {
-                    throw new Error("HTTP monitor timed out after refreshing OAuth credentials");
-                }
-                options.timeout = remaining;
-
-                return this.makeHttpMonitorRequest(options, true, deadline);
-            }
-
-            throw error;
-        }
+        const { makeHttpMonitorRequest } = await import("@/server/monitor-http");
+        return makeHttpMonitorRequest(this, options, finalCall, deadline);
     }
 
     /**
@@ -2264,26 +2023,8 @@ class Monitor extends BeanModel {
      * @returns {Promise<object>} OAuth token response
      */
     async makeOAuthClientCredentialsRequest(timeout = this.timeout * 1000) {
-        log.debug("monitor", `[${this.name}] The oauth access-token undefined or expired. Requesting a new token`);
-        const oAuthAccessToken = await getOAuthClientCredentialsToken(
-            this.oauth_token_url,
-            this.oauth_client_id,
-            this.oauth_client_secret,
-            this.oauth_scopes,
-            this.oauth_audience,
-            this.oauth_auth_method,
-            timeout
-        );
-        if (this.oauthAccessToken?.expires_at) {
-            log.debug(
-                "monitor",
-                `[${this.name}] Obtained oauth access-token. Expires at ${new Date(this.oauthAccessToken?.expires_at * 1000)}`
-            );
-        } else {
-            log.debug("monitor", `[${this.name}] Obtained oauth access-token. Time until expiry was not provided`);
-        }
-
-        return oAuthAccessToken;
+        const { makeOAuthClientCredentialsRequest } = await import("@/server/monitor-http");
+        return makeOAuthClientCredentialsRequest(this, timeout);
     }
 
     /**

@@ -21,6 +21,8 @@ import { Prometheus } from "@/server/prometheus";
 import { handleApiRequest } from "@/server/routers/api-router";
 import { chartSocketHandler } from "@/server/socket-handlers/chart-socket-handler";
 import { createResponseCache } from "@/server/bun-response";
+import { DockerHost } from "@/server/docker";
+import httpClient from "@/server/http-client";
 import { DOWN, MAINTENANCE, PENDING, UP } from "@/constants";
 
 const resources = [];
@@ -28,6 +30,8 @@ const originalPrometheusUpdate = Prometheus.prototype.update;
 const originalSendNotification = Monitor.sendNotification;
 const originalIsUnderMaintenance = Monitor.isUnderMaintenance;
 const originalNotificationSend = Notification.send;
+const originalHttpClientRequest = httpClient.request;
+const originalDockerHttpsAgentOptions = DockerHost.getHttpsAgentOptions;
 
 dayjs.extend(timezone);
 
@@ -79,6 +83,8 @@ afterEach(async () => {
     Monitor.sendNotification = originalSendNotification;
     Monitor.isUnderMaintenance = originalIsUnderMaintenance;
     Notification.send = originalNotificationSend;
+    httpClient.request = originalHttpClientRequest;
+    DockerHost.getHttpsAgentOptions = originalDockerHttpsAgentOptions;
     for (const { directory, settings, store } of resources.splice(0)) {
         settings.stopCacheCleaner();
         await store.close();
@@ -87,6 +93,61 @@ afterEach(async () => {
 });
 
 describe("heartbeat data plane", () => {
+    test("runs a Docker TCP heartbeat through its runtime dependencies", async () => {
+        const { data, responseCache, server, store } = await createRuntime("docker-heartbeat");
+        await store.exec(
+            "INSERT INTO docker_host (id, user_id, docker_daemon, docker_type, name) VALUES (1, 1, 'tcp://docker.test', 'tcp', 'fixture')"
+        );
+        await store.exec(
+            "UPDATE monitor SET type = 'docker', docker_host = 1, docker_container = 'fixture', interval = 60, timeout = 5, maxretries = 0 WHERE id = 1"
+        );
+
+        const requests = [];
+        DockerHost.getHttpsAgentOptions = async () => ({ rejectUnauthorized: true });
+        httpClient.request = async (options) => {
+            requests.push(options);
+            return {
+                data: { State: { Running: true, Health: { Status: "healthy" } } },
+                status: 200,
+                statusText: "OK",
+            };
+        };
+
+        const originalLoad = store.load;
+        store.load = async (table, id) => {
+            if (table === "docker_host") {
+                return { _dockerType: "tcp", _dockerDaemon: "tcp://docker.test" };
+            }
+            return originalLoad.call(store, table, id);
+        };
+
+        Prometheus.prototype.update = () => {};
+        Monitor.sendNotification = async () => {};
+        server.sendMaintenanceListByUserID = async () => {};
+        const io = {
+            rooms: new Map(),
+            to: () => ({ emit: () => {} }),
+        };
+        server.io = io;
+
+        try {
+            const monitor = await originalLoad.call(store, "monitor", 1);
+            monitor.scheduleHeartbeat = () => {};
+            await monitor.start(io, data, server, undefined, responseCache);
+            await monitor.activeHeartbeat;
+
+            expect(requests).toHaveLength(1);
+            expect(requests[0]).toMatchObject({
+                baseURL: "http://docker.test",
+                url: "/containers/fixture/json",
+                timeout: 5000,
+            });
+            expect((await data.latest(1)).toJSON()).toMatchObject({ status: UP, msg: "healthy" });
+        } finally {
+            store.load = originalLoad;
+        }
+    });
+
     test("isolates writes, reads, rolling buckets, and cache ownership between two real stores", async () => {
         const first = await createRuntime("first");
         const second = await createRuntime("second");
