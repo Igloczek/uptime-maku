@@ -1,8 +1,6 @@
 // @ts-nocheck
 
-import { BeanModel } from "@/server/bean-model";
 import {
-    filterStoreRow,
     monitorPropertyColumns,
     monitorSnakePrecedenceColumns,
     normalizeBoolean,
@@ -10,9 +8,6 @@ import {
 } from "@/db/schema/column-metadata";
 import { expectedTableColumns } from "@/db/schema/expected-schema";
 
-export { filterStoreRow };
-
-const modelMap = {};
 const monitorMappedProperties = new Set(Object.keys(monitorPropertyColumns));
 
 // Generic camelCase -> snake_case aliases for tables that use BeanModel fields in camelCase.
@@ -50,10 +45,6 @@ const tablePropertyColumns = {
         modifiedDate: "modified_date",
     },
 };
-
-export function registerModel(table, model) {
-    modelMap[table] = model;
-}
 
 function resolveMonitorField(row, property, column, { forStore = false } = {}) {
     const hasColumn = forStore ? row[column] !== undefined : row[column] !== undefined && row[column] !== null;
@@ -138,8 +129,7 @@ export function normalizeRowForStore(table, row) {
     return result;
 }
 
-export function beanForTable(table, row = {}) {
-    const Model = modelMap[table] || BeanModel;
+export function beanForTable(Model, table, row = {}) {
     const bean = new Model();
     Object.assign(bean, table === "monitor" ? normalizeMonitorRow(row) : row);
     if (table === "heartbeat") {
@@ -156,6 +146,5 @@ export function beanForTable(table, row = {}) {
         bean._retries = row.retries;
         bean._response = row.response;
     }
-    Object.defineProperty(bean, "__table", { value: table, enumerable: false, configurable: true });
     return bean;
 }

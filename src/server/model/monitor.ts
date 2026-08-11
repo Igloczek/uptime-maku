@@ -178,12 +178,13 @@ class Monitor extends BeanModel {
     /**
      * Return an object that ready to parse to JSON for public Only show
      * necessary data to public
+     * @param {SQLiteStore} store Store used to load related data
      * @param {boolean} showTags Include tags in JSON
      * @param {boolean} certExpiry Include certificate expiry info in
      * JSON
      * @returns {Promise<object>} Object ready to parse
      */
-    async toPublicJSON(showTags = false, certExpiry = false) {
+    async toPublicJSON(store, showTags = false, certExpiry = false) {
         let obj = {
             id: this.id,
             name: this.name,
@@ -196,11 +197,11 @@ class Monitor extends BeanModel {
         }
 
         if (showTags) {
-            obj.tags = await this.getTags();
+            obj.tags = await this.getTags(store);
         }
 
         if (certExpiry) {
-            const { certExpiryDaysRemaining, validCert } = await this.getCertExpiry(this.id);
+            const { certExpiryDaysRemaining, validCert } = await this.getCertExpiry(this.id, store);
             obj.certExpiryDaysRemaining = certExpiryDaysRemaining;
             obj.validCert = validCert;
         }
@@ -362,7 +363,7 @@ class Monitor extends BeanModel {
      * @returns {Promise<LooseObject<any>[]>} List of tags on the
      * monitor
      */
-    async getTags(store = this.__store) {
+    async getTags(store) {
         return await store.getAll(
             "SELECT mt.*, tag.name, tag.color FROM monitor_tag mt JOIN tag ON mt.tag_id = tag.id WHERE mt.monitor_id = ? ORDER BY tag.name",
             [this.id]
@@ -375,7 +376,7 @@ class Monitor extends BeanModel {
      * @returns {Promise<LooseObject<any>>} Certificate expiry info for
      * monitor
      */
-    async getCertExpiry(monitorID, store = this.__store) {
+    async getCertExpiry(monitorID, store) {
         let tlsInfoBean = await store.findOne("monitor_tls_info", "monitor_id = ?", [monitorID]);
         let tlsInfo;
         if (tlsInfoBean) {
@@ -1308,7 +1309,7 @@ class Monitor extends BeanModel {
      * @param {object} options HTTP request options
      * @returns {Promise<void>}
      */
-    async assertFetchHttpTransportSupported(options = {}, store = this.__store) {
+    async assertFetchHttpTransportSupported(options = {}, store) {
         if (this.auth_method === "ntlm") {
             throw new Error("NTLM monitor authentication is not supported by the Bun fetch HTTP client");
         }
@@ -1428,7 +1429,7 @@ class Monitor extends BeanModel {
      * @param {object} checkCertificateResult Certificate to update
      * @returns {Promise<object>} Updated certificate
      */
-    async updateTlsInfo(checkCertificateResult, store = this.__store) {
+    async updateTlsInfo(checkCertificateResult, store) {
         let tlsInfoBean = await store.findOne("monitor_tls_info", "monitor_id = ?", [this.id]);
 
         if (tlsInfoBean == null) {
@@ -2291,7 +2292,7 @@ class Monitor extends BeanModel {
      * @param {object} tlsInfo Information about the TLS connection
      * @returns {Promise<void>}
      */
-    async handleTlsInfo(tlsInfo, providerRegistry, settings, store = this.__store) {
+    async handleTlsInfo(tlsInfo, providerRegistry, settings, store) {
         if (!rootCertificates) {
             const { rootCertificatesFingerprints } = await import("@/server/tls-cert");
             rootCertificates ??= rootCertificatesFingerprints();

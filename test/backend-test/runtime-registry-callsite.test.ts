@@ -7,7 +7,7 @@ import utc from "dayjs/plugin/utc";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import "@/server/model-registry";
+import { MODEL_MAPPING } from "@/server/model-registry";
 import { HeartbeatDataPlane } from "@/server/heartbeat-data-plane";
 import DomainExpiry from "@/server/model/domain_expiry";
 import { MonitorRuntimeRegistry } from "@/server/monitor-runtime-registry";
@@ -30,7 +30,7 @@ dayjs.extend(timezone);
 
 async function createRuntime(name, type = "owned") {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), `uptime-maku-registry-${name}-`));
-    const store = new BunSQLiteRedbean();
+    const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
     await store.connect({
         sqlitePath: path.join(directory, "kuma.db"),
         templatePath: path.join(process.cwd(), "src/db/kuma.db"),

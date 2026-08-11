@@ -6,10 +6,11 @@ import { NotificationProviderRegistry } from "@/server/notification-provider-reg
 import { UptimeMakuServer } from "@/server/uptime-maku-server";
 import { sendMonitorTypeList } from "@/server/client";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
+import { MODEL_MAPPING } from "@/server/model-registry";
 import { Settings } from "@/server/settings";
 
 function createServer() {
-    const store = new BunSQLiteRedbean();
+    const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
     return new UptimeMakuServer(store, new Settings(store));
 }
 

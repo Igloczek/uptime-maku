@@ -11,7 +11,7 @@ import { sendHeartbeatList } from "@/server/client";
 import { HeartbeatDataPlane } from "@/server/heartbeat-data-plane";
 import { clearWithStoppedMonitors } from "@/server/monitor-clear";
 import { clearOldData } from "@/server/jobs/clear-old-data";
-import "@/server/model-registry";
+import { MODEL_MAPPING } from "@/server/model-registry";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
 import Monitor from "@/server/model/monitor";
 import { Notification } from "@/server/notification";
@@ -41,7 +41,7 @@ function deferred() {
 
 async function createRuntime(name, now = dayjs.utc("2026-08-07T12:00:00Z")) {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), `uptime-maku-${name}-`));
-    const store = new BunSQLiteRedbean();
+    const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
     await store.connect({
         sqlitePath: path.join(directory, "kuma.db"),
         templatePath: path.join(process.cwd(), "src/db/kuma.db"),

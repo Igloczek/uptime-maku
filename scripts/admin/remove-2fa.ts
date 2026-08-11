@@ -1,6 +1,6 @@
 import Database from "@/server/database";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
-import "@/server/model-registry";
+import { MODEL_MAPPING } from "@/server/model-registry";
 import readline from "readline";
 import TwoFA from "@/server/2fa";
 import { args } from "@/server/args";
@@ -14,7 +14,7 @@ const rl = readline.createInterface({
 });
 
 const main = async () => {
-    const store = new BunSQLiteRedbean();
+    const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
     Database.initDataDir(args);
     await Database.connect(store);
 

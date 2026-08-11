@@ -8,9 +8,9 @@ import net from "node:net";
 import path from "node:path";
 import httpClient from "@/server/http-client";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
-import "@/server/model-registry";
+import { MODEL_MAPPING } from "@/server/model-registry";
 
-const store = new BunSQLiteRedbean();
+const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
 
 let ipv6ProxyServer;
 try {
@@ -400,12 +400,12 @@ describe("fetch HTTP client", () => {
         const monitor = store.convertToBean("monitor");
         monitor.auth_method = "mtls";
 
-        await expect(monitor.assertFetchHttpTransportSupported()).rejects.toThrow(
+        await expect(monitor.assertFetchHttpTransportSupported({}, store)).rejects.toThrow(
             /mTLS monitor authentication is not supported/
         );
 
         monitor.auth_method = "ntlm";
-        await expect(monitor.assertFetchHttpTransportSupported()).rejects.toThrow(
+        await expect(monitor.assertFetchHttpTransportSupported({}, store)).rejects.toThrow(
             /NTLM monitor authentication is not supported/
         );
     });
@@ -437,7 +437,7 @@ describe("fetch HTTP client", () => {
 
         try {
             const options = { url: `${baseUrl}/ok` };
-            await monitor.assertFetchHttpTransportSupported(options);
+            await monitor.assertFetchHttpTransportSupported(options, store);
             expect(options.proxy).toBe(`${proxyUrl}/`);
             expect((await monitor.makeHttpMonitorRequest(options)).data).toEqual({ ok: true });
         } finally {
@@ -473,7 +473,7 @@ describe("fetch HTTP client", () => {
             const redirectHeaderStart = redirectTargetProxyAuthorizationHeaders.length;
             const tlsHeaderStart = tlsTargetProxyAuthorizationHeaders.length;
             const options = { url: `${baseUrl}/ok` };
-            await monitor.assertFetchHttpTransportSupported(options);
+            await monitor.assertFetchHttpTransportSupported(options, store);
             const response = await monitor.makeHttpMonitorRequest(options);
 
             expect(response.data).toEqual({ ok: true });
@@ -482,11 +482,11 @@ describe("fetch HTTP client", () => {
             expect(JSON.stringify(options.proxy)).not.toContain(proxyPassword);
 
             const redirectOptions = { url: `${baseUrl}/cross-origin-redirect`, maxRedirects: 1 };
-            await monitor.assertFetchHttpTransportSupported(redirectOptions);
+            await monitor.assertFetchHttpTransportSupported(redirectOptions, store);
             expect((await monitor.makeHttpMonitorRequest(redirectOptions)).data).toBe("redirect-target-ok");
 
             const tlsOptions = { url: tlsUrl };
-            await monitor.assertFetchHttpTransportSupported(tlsOptions);
+            await monitor.assertFetchHttpTransportSupported(tlsOptions, store);
             tlsOptions.rejectUnauthorized = false;
             expect((await monitor.makeHttpMonitorRequest(tlsOptions)).data).toBe("self-signed-ok");
 
@@ -503,7 +503,7 @@ describe("fetch HTTP client", () => {
 
             loadedPassword = `${proxyPassword}-rejected`;
             const rejectedOptions = { url: `${baseUrl}/ok` };
-            await monitor.assertFetchHttpTransportSupported(rejectedOptions);
+            await monitor.assertFetchHttpTransportSupported(rejectedOptions, store);
             const rejection = await monitor.makeHttpMonitorRequest(rejectedOptions).catch((error) => error);
             const rejectedAuthorization = `Basic ${Buffer.from(`${proxyUsername}:${loadedPassword}`).toString("base64")}`;
             const serializedError = `${rejection.stack}\n${JSON.stringify(rejection)}`;
@@ -538,7 +538,9 @@ describe("fetch HTTP client", () => {
         });
 
         try {
-            const error = await monitor.assertFetchHttpTransportSupported({ url: `${baseUrl}/ok` }).catch((e) => e);
+            const error = await monitor
+                .assertFetchHttpTransportSupported({ url: `${baseUrl}/ok` }, store)
+                .catch((e) => e);
             expect(error).toBeInstanceOf(Error);
             expect(error.message).toMatch(/SOCKS proxy.*not supported.*Bun fetch/i);
             expect(error.message).not.toContain("socks-user");
@@ -569,7 +571,7 @@ describe("fetch HTTP client", () => {
 
         try {
             const options = { url: `${baseUrl}/ok` };
-            await monitor.assertFetchHttpTransportSupported(options);
+            await monitor.assertFetchHttpTransportSupported(options, store);
             expect(options.proxy).toBe(`http://[::1]:${ipv6ProxyServer.port}/`);
             expect((await monitor.makeHttpMonitorRequest(options)).data).toEqual({ ok: true });
         } finally {
@@ -605,7 +607,7 @@ describe("fetch HTTP client", () => {
         });
 
         try {
-            await expect(monitor.assertFetchHttpTransportSupported({ url: `${baseUrl}/ok` })).rejects.toThrow(
+            await expect(monitor.assertFetchHttpTransportSupported({ url: `${baseUrl}/ok` }, store)).rejects.toThrow(
                 /ignore TLS.*HTTPS proxy.*not supported/i
             );
         } finally {
@@ -633,7 +635,7 @@ describe("fetch HTTP client", () => {
 
         try {
             const options = { url: tlsUrl };
-            await monitor.assertFetchHttpTransportSupported(options);
+            await monitor.assertFetchHttpTransportSupported(options, store);
             expect((await monitor.makeHttpMonitorRequest(options)).data).toBe("self-signed-ok");
         } finally {
             store.findOne = originalFindOne;
@@ -649,7 +651,7 @@ describe("fetch HTTP client", () => {
         const options = { url: tlsUrl };
 
         await expect(httpClient.get(tlsUrl)).rejects.toThrow();
-        await monitor.assertFetchHttpTransportSupported(options);
+        await monitor.assertFetchHttpTransportSupported(options, store);
         const response = await monitor.makeHttpMonitorRequest(options);
 
         expect(response.data).toBe("self-signed-ok");
@@ -662,7 +664,7 @@ describe("fetch HTTP client", () => {
         monitor.ignoreTls = false;
         monitor.ipFamily = "ipv4";
 
-        await expect(monitor.assertFetchHttpTransportSupported({})).rejects.toThrow(/Forced IP family/);
+        await expect(monitor.assertFetchHttpTransportSupported({}, store)).rejects.toThrow(/Forced IP family/);
     });
 
     test("saved response size behavior remains truncation after the response is read", async () => {

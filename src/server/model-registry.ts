@@ -1,6 +1,5 @@
 // @ts-nocheck
 
-import { registerModel } from "@/server/sqlite-core";
 import APIKey from "@/server/model/api_key";
 import DomainExpiry from "@/server/model/domain_expiry";
 import DockerHost from "@/server/model/docker_host";
@@ -16,7 +15,7 @@ import Tag from "@/server/model/tag";
 import User from "@/server/model/user";
 
 // Literal imports are deliberate: Bun must see every model when compiling the executable.
-export const MODEL_REGISTRY = {
+export const MODEL_MAPPING = Object.freeze({
     api_key: APIKey,
     domain_expiry: DomainExpiry,
     docker_host: DockerHost,
@@ -30,8 +29,4 @@ export const MODEL_REGISTRY = {
     status_page: StatusPage,
     tag: Tag,
     user: User,
-};
-
-for (const [table, model] of Object.entries(MODEL_REGISTRY)) {
-    registerModel(table, model);
-}
+});

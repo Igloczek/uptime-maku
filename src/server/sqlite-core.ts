@@ -5,7 +5,8 @@ import fs from "fs";
 import { BeanModel } from "@/server/bean-model";
 import { Database as BunDatabase } from "bun:sqlite";
 import dayjs from "dayjs";
-import { beanForTable, filterStoreRow, normalizeRowForStore, registerModel } from "@/server/sqlite-model-mapping";
+import { filterStoreRow } from "@/db/schema/column-metadata";
+import { beanForTable, normalizeRowForStore } from "@/server/sqlite-model-mapping";
 import {
     addColumnIfMissing as addSchemaColumnIfMissing,
     columnExists as schemaColumnExists,
@@ -32,6 +33,8 @@ function conditionSql(condition) {
 class BunSQLiteRedbean {
     #db = null;
     #databaseFactory;
+    #modelMapping;
+    #beanTables = new WeakMap();
     #poisonError = null;
     sqlitePath = null;
     dbConfig = { type: "sqlite" };
@@ -39,8 +42,15 @@ class BunSQLiteRedbean {
     #transactionQueue = [];
     #processingQueue = false;
 
-    constructor({ databaseFactory = (sqlitePath, options) => new BunDatabase(sqlitePath, options) } = {}) {
+    constructor({
+        modelMapping,
+        databaseFactory = (sqlitePath, options) => new BunDatabase(sqlitePath, options),
+    } = {}) {
+        if (!modelMapping || typeof modelMapping !== "object") {
+            throw new TypeError("BunSQLiteRedbean requires an explicit model mapping");
+        }
         this.#databaseFactory = databaseFactory;
+        this.#modelMapping = Object.freeze({ ...modelMapping });
     }
 
     isOpen() {
@@ -108,10 +118,6 @@ class BunSQLiteRedbean {
         };
     }
 
-    async addColumnIfMissing(table, column, type) {
-        return this.#runDatabaseOperation(null, () => addSchemaColumnIfMissing(this.#database(), table, column, type));
-    }
-
     async close() {
         if (!this.#db) {
             return;
@@ -130,8 +136,9 @@ class BunSQLiteRedbean {
     }
 
     #beanForTable(table, row = {}) {
-        const bean = beanForTable(table, row);
-        Object.defineProperty(bean, "__store", { value: this, configurable: true });
+        const Model = this.#modelMapping[table] || BeanModel;
+        const bean = beanForTable(Model, table, row);
+        this.#beanTables.set(bean, table);
         return bean;
     }
 
@@ -147,11 +154,16 @@ class BunSQLiteRedbean {
         return rows.map((row) => this.#beanForTable(table, row));
     }
 
-    #store(bean) {
-        const table = bean.__table;
+    #tableForBean(bean, operation) {
+        const table = this.#beanTables.get(bean);
         if (!table) {
-            throw new Error("Cannot store bean without table metadata");
+            throw new Error(`Cannot ${operation} bean that is not owned by this SQLite store`);
         }
+        return table;
+    }
+
+    #store(bean) {
+        const table = this.#tableForBean(bean, "store");
 
         let row = {};
         for (const [key, value] of Object.entries(bean)) {
@@ -167,23 +179,10 @@ class BunSQLiteRedbean {
         if (bean.id) {
             if (columns.length > 0) {
                 const assignments = columns.map((column) => `"${column}" = ?`).join(", ");
-                try {
-                    this.#exec(`UPDATE "${table}" SET ${assignments} WHERE id = ?`, [
-                        ...columns.map((column) => row[column]),
-                        bean.id,
-                    ]);
-                } catch (error) {
-                    if (!String(error.message).includes("no such column")) {
-                        throw error;
-                    }
-                    for (const column of columns) {
-                        addSchemaColumnIfMissing(this.#database(), table, column);
-                    }
-                    this.#exec(`UPDATE "${table}" SET ${assignments} WHERE id = ?`, [
-                        ...columns.map((column) => row[column]),
-                        bean.id,
-                    ]);
-                }
+                this.#exec(`UPDATE "${table}" SET ${assignments} WHERE id = ?`, [
+                    ...columns.map((column) => row[column]),
+                    bean.id,
+                ]);
             }
             return bean.id;
         }
@@ -195,26 +194,11 @@ class BunSQLiteRedbean {
         }
 
         const placeholders = columns.map(() => "?").join(", ");
-        let result;
-        try {
-            result = this.#database()
-                .query(
-                    `INSERT INTO "${table}" (${columns.map((column) => `"${column}"`).join(", ")}) VALUES (${placeholders})`
-                )
-                .run(...columns.map((column) => row[column]));
-        } catch (error) {
-            if (!String(error.message).includes("no column named")) {
-                throw error;
-            }
-            for (const column of columns) {
-                addSchemaColumnIfMissing(this.#database(), table, column);
-            }
-            result = this.#database()
-                .query(
-                    `INSERT INTO "${table}" (${columns.map((column) => `"${column}"`).join(", ")}) VALUES (${placeholders})`
-                )
-                .run(...columns.map((column) => row[column]));
-        }
+        const result = this.#database()
+            .query(
+                `INSERT INTO "${table}" (${columns.map((column) => `"${column}"`).join(", ")}) VALUES (${placeholders})`
+            )
+            .run(...columns.map((column) => row[column]));
         bean.id = Number(result.lastInsertRowid);
         return bean.id;
     }
@@ -224,10 +208,7 @@ class BunSQLiteRedbean {
     }
 
     #trash(bean) {
-        const table = bean.__table;
-        if (!table) {
-            throw new Error("Cannot trash bean without table metadata");
-        }
+        const table = this.#tableForBean(bean, "trash");
         if (bean.id) {
             this.#exec(`DELETE FROM "${table}" WHERE id = ?`, [bean.id]);
             bean.id = 0;
@@ -519,4 +500,4 @@ class BunSQLiteRedbean {
     }
 }
 
-export { BeanModel, BunSQLiteRedbean, registerModel };
+export { BunSQLiteRedbean };

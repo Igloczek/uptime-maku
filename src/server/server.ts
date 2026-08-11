@@ -15,7 +15,7 @@ import { getRandomInt, genSecret } from "@/util/random";
 import config from "@/server/config";
 import { createVersionChecker, version } from "@/server/check-version";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
-import "@/server/model-registry";
+import { MODEL_MAPPING } from "@/server/model-registry";
 import { Settings } from "@/server/settings";
 import jwt from "@/server/jwt";
 
@@ -138,7 +138,7 @@ log.info("server", "Loading modules");
 log.debug("server", "Creating database store");
 log.debug("server", "Importing 2FA Modules");
 
-const store = new BunSQLiteRedbean();
+const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
 const settings = new Settings(store);
 const server = new UptimeMakuServer(store, settings);
 await server.loadFrontendAssets();

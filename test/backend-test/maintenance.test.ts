@@ -11,7 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import Maintenance from "@/server/model/maintenance";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
-import "@/server/model-registry";
+import { MODEL_MAPPING } from "@/server/model-registry";
 import { cachedResponse, clearResponseCache, createResponseCache, textResponse } from "@/server/bun-response";
 import { UptimeMakuServer } from "@/server/uptime-maku-server";
 import { Settings } from "@/server/settings";
@@ -29,7 +29,7 @@ describe("maintenance validation and timer lifecycle", () => {
     let originals;
 
     beforeEach(() => {
-        runtimeStore = new BunSQLiteRedbean();
+        runtimeStore = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
         runtimeSettings = new Settings(runtimeStore);
         runtimeServer = new UptimeMakuServer(runtimeStore, runtimeSettings);
         responseCache = createResponseCache();
@@ -647,7 +647,7 @@ describe("maintenance validation and timer lifecycle", () => {
 
     test("rolls back when addMaintenance fails on its first transaction operation", async () => {
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-add-first-error-"));
-        const store = new BunSQLiteRedbean();
+        const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
         const originalBeginForTest = runtimeStore.begin;
         await store.connect({
             sqlitePath: path.join(directory, "kuma.db"),
@@ -691,7 +691,7 @@ describe("maintenance validation and timer lifecycle", () => {
 
     test("rolls back when relation replacement fails on its first transaction operation", async () => {
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-relation-first-error-"));
-        const store = new BunSQLiteRedbean();
+        const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
         const server = runtimeServer;
         const previousMaintenanceList = server.maintenanceList;
         const originalBeginForTest = runtimeStore.begin;
@@ -749,7 +749,7 @@ describe("maintenance validation and timer lifecycle", () => {
 
     test("rolls back when edit setup fails immediately after begin", async () => {
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-first-error-"));
-        const store = new BunSQLiteRedbean();
+        const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
         const server = runtimeServer;
         const previousMaintenanceList = server.maintenanceList;
         const originalBeginForTest = runtimeStore.begin;
@@ -833,8 +833,8 @@ describe("maintenance validation and timer lifecycle", () => {
 
     test("uses the supplied store and keeps maintenance ownership isolated", async () => {
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-stores-"));
-        const first = new BunSQLiteRedbean();
-        const second = new BunSQLiteRedbean();
+        const first = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
+        const second = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
         const socket = (userID, handlers) => ({
             userID,
             on(event, handler) {

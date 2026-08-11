@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import "@/server/model-registry";
+import { MODEL_MAPPING } from "@/server/model-registry";
 import { HeartbeatDataPlane } from "@/server/heartbeat-data-plane";
 import StatusPage from "@/server/model/status_page";
 import { UptimeMakuServer } from "@/server/uptime-maku-server";
@@ -18,7 +18,7 @@ const runtimes = [];
 
 async function createRuntime(name, timezone, trustProxy) {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), `uptime-maku-composition-${name}-`));
-    const store = new BunSQLiteRedbean();
+    const store = new BunSQLiteRedbean({ modelMapping: MODEL_MAPPING });
     await store.connect({
         sqlitePath: path.join(directory, "kuma.db"),
         templatePath: path.join(process.cwd(), "src/db/kuma.db"),

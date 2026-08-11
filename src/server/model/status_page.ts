@@ -334,7 +334,7 @@ class StatusPage extends BeanModel {
         const list = await store.find("group", "public = 1 AND status_page_id = ? ORDER BY weight", [statusPage.id]);
 
         for (let groupBean of list) {
-            let monitorGroup = await groupBean.toPublicJSON(showTags, config?.showCertificateExpiry);
+            let monitorGroup = await groupBean.toPublicJSON(store, showTags, config?.showCertificateExpiry);
             publicGroupList.push(monitorGroup);
         }
 
