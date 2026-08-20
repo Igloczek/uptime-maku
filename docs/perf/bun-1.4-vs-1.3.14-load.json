@@ -1,0 +1,39 @@
+{
+    "measuredAt": "2026-08-20T15:24:39Z",
+    "os": "darwin",
+    "arch": "arm64",
+    "results": [
+        {
+            "label": "bun-1.3.14",
+            "bunVersion": "1.3.14",
+            "binary": "/tmp/uptime-maku-bun-1.3.14/uptime-maku",
+            "binaryBytes": 96108914,
+            "readyMs": 220.5,
+            "idleRssKbMedian": 47904,
+            "idleCpuMedian": 0.0,
+            "idleCpuMax": 21.5,
+            "loadRequests": 2000,
+            "loadSeconds": 9.674,
+            "loadRps": 206.7,
+            "peakRssKb": 52464,
+            "rssAfterLoadKb": 45360,
+            "cpuAfterLoad": 2.7
+        },
+        {
+            "label": "bun-1.4.0",
+            "bunVersion": "1.4.0",
+            "binary": "/Users/igloczek/.t3/worktrees/pocketkuma/t3code-091a33b1/uptime-maku",
+            "binaryBytes": 96108914,
+            "readyMs": 174.7,
+            "idleRssKbMedian": 40424.0,
+            "idleCpuMedian": 0.0,
+            "idleCpuMax": 16.2,
+            "loadRequests": 2000,
+            "loadSeconds": 7.954,
+            "loadRps": 251.5,
+            "peakRssKb": 46272,
+            "rssAfterLoadKb": 46272,
+            "cpuAfterLoad": 2.7
+        }
+    ]
+}
