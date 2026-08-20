@@ -160,6 +160,20 @@ describe("database lifecycle wiring", () => {
         expect(sql).toEqual(["PRAGMA incremental_vacuum(200)", "PRAGMA wal_checkpoint(PASSIVE)"]);
     });
 
+    test("schedules in-process Bun cron jobs that can be stopped", () => {
+        const store = { exec: async () => {} };
+        const coordinator = {
+            run: async (operation) => operation(),
+            maintain: async (operation) => operation(),
+        };
+
+        scheduledJobs = scheduleBackgroundJobs(store, coordinator, "UTC");
+        expect(scheduledJobs).toHaveLength(2);
+        expect(typeof scheduledJobs[0].stop).toBe("function");
+        stopBackgroundJobs(scheduledJobs);
+        expect(scheduledJobs).toHaveLength(0);
+    });
+
     test("wires the database socket handler to its injected store", async () => {
         const handlers = {};
         const socket = {

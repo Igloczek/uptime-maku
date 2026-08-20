@@ -1897,6 +1897,9 @@ process.once("SIGTERM", async () => {
     finalFunction();
     process.exit(0);
 });
+process.on("memoryPressure", () => {
+    clearResponseCache(responseCache);
+});
 
 // Catch unexpected errors here
 let unexpectedErrorHandler = (error, promise) => {

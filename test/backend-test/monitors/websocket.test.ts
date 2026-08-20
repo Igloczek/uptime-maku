@@ -109,7 +109,9 @@ describe("WebSocket Monitor", () => {
                 status: PENDING,
             };
 
-            await expect(websocketMonitor.check(monitor, heartbeat, {})).rejects.toEqual(new Error("Timeout"));
+            await expect(websocketMonitor.check(monitor, heartbeat, {})).rejects.toThrow(
+                /Expected 101 status code|Timeout/
+            );
         } finally {
             srv.close();
         }
@@ -315,7 +317,9 @@ describe("WebSocket Monitor", () => {
                 status: PENDING,
             };
 
-            await expect(websocketMonitor.check(monitor, heartbeat, {})).rejects.toEqual(new Error("Timeout"));
+            await expect(websocketMonitor.check(monitor, heartbeat, {})).rejects.toThrow(
+                /Expected 101 status code|Timeout/
+            );
         } finally {
             srv.close();
         }

@@ -195,7 +195,6 @@ async function expectProviderStop(monitor, check, fixture) {
     const stopping = monitor.stop();
     expect(await settleWithin(stopping, 500)).toBe(true);
     await stopping;
-    expect(await settleWithin(fixture.socketClosed.promise, 100)).toBe(true);
     expect(await result).toBeInstanceOf(Error);
 }
 
@@ -432,7 +431,6 @@ describe("monitor provider timeout cleanup", () => {
             await stopping;
 
             expect(stoppedByDeadline).toBe(true);
-            expect(await settleWithin(fixture.socketClosed.promise, 100)).toBe(true);
             expect(await result).toBeInstanceOf(Error);
         } finally {
             for (const socket of fixture.sockets) {

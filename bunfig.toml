@@ -1,3 +1,11 @@
 [install]
 # Keep the release-age guard expressed in Bun's seconds-based setting.
 minimumReleaseAge = 1209600
+# Allow the runtime types package to track Bun itself without waiting 14 days.
+minimumReleaseAgeExcludes = ["@types/bun"]
+
+[run]
+# Run package.json scripts with Bun instead of Node (vite, playwright, tsc, stylelint).
+bun = true
+# Tear down child processes if this process or its parent dies.
+noOrphans = true

@@ -8,7 +8,7 @@ The repository is published "as is": no formal support process, no issue triage 
 
 ## Current Stack
 
-- Backend: Bun runtime, native ESM modules (`import`/`export`), Express compatibility routes, and Bun-native HTTP/WebSocket paths.
+- Backend: Bun 1.4 runtime, native ESM modules (`import`/`export`), Express compatibility routes, and Bun-native HTTP/WebSocket paths.
 - Frontend: Vue 3, Vite, Bootstrap-based UI.
 - Database layer: SQLite only through the Bun-native compatibility store; MariaDB/MySQL are not supported as application databases.
 - Package manager today: Bun with `bun.lock`.

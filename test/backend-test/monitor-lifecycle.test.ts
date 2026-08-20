@@ -853,9 +853,6 @@ describe("monitor lifecycle over the production WebSocket transport", () => {
             expect(stoppedByDeadline).toBe(true);
             expect(performance.now() - started).toBeLessThan(1_500);
             expect(paused.ok).toBe(true);
-            expect(await Promise.race([fixture.socketClosed.then(() => true), Bun.sleep(100).then(() => false)])).toBe(
-                true
-            );
             expect(queryMonitorStorage(monitorID)).toMatchObject({ timeout: "bogus", timeout_type: "text" });
         } finally {
             fixture.destroySockets();

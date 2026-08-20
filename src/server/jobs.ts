@@ -1,12 +1,54 @@
-// @ts-nocheck
-
 import { clearOldData } from "@/server/jobs/clear-old-data";
 import { incrementalVacuum } from "@/server/jobs/incremental-vacuum";
-import Cron from "croner";
 import type { SQLiteStore } from "@/server/db-migrations";
 import type { DatabaseMaintenanceCoordinator } from "@/server/database-maintenance";
+import type { Settings } from "@/server/settings";
 
-const jobDefinitions = [
+type JobCallback = () => unknown;
+
+type CronJobLike = {
+    stop: () => void;
+};
+
+type CronConstructor = new (
+    interval: string,
+    options: { name: string; timezone?: string },
+    callback: JobCallback
+) => CronJobLike;
+
+function scheduleInProcessCron(interval: string, callback: JobCallback, timezone?: string): Bun.CronJob {
+    if (!timezone) {
+        return Bun.cron(interval, callback);
+    }
+
+    // @types/bun 1.3.x does not yet declare the 1.4 `{ tz }` overload.
+    return (Bun.cron as (schedule: string, handler: JobCallback, options: { tz: string }) => Bun.CronJob)(
+        interval,
+        callback,
+        { tz: timezone }
+    );
+}
+
+class BunCron implements CronJobLike {
+    #job: Bun.CronJob;
+
+    constructor(interval: string, options: { name: string; timezone?: string }, callback: JobCallback) {
+        this.#job = scheduleInProcessCron(interval, callback, options.timezone);
+    }
+
+    stop() {
+        this.#job.stop();
+    }
+}
+
+type BackgroundJob = {
+    name: string;
+    interval: string;
+    jobFunc: (store: SQLiteStore, settings?: Settings, heartbeatData?: unknown) => unknown;
+    exclusive?: boolean;
+};
+
+const jobDefinitions: BackgroundJob[] = [
     {
         name: "clear-old-data",
         interval: "14 03 * * *",
@@ -17,55 +59,44 @@ const jobDefinitions = [
         name: "incremental-vacuum",
         interval: "*/5 * * * *",
         jobFunc: incrementalVacuum,
+        exclusive: false,
     },
 ];
 
-/**
- * Initialize background jobs
- * @returns {Promise<void>}
- */
-const scheduleBackgroundJobs = function (
+function scheduleBackgroundJobs(
     store: SQLiteStore,
     coordinator: DatabaseMaintenanceCoordinator,
-    timezone,
-    CronClass = Cron,
-    settings,
+    timezone: string | undefined,
+    CronClass: CronConstructor = BunCron,
+    settings?: Settings,
     heartbeatData = null,
-    scheduledJobs = []
+    scheduledJobs: CronJobLike[] = []
 ) {
     for (const job of jobDefinitions) {
-        const cornerJob = new CronClass(
-            job.interval,
-            {
-                name: job.name,
-                timezone,
-            },
-            () => coordinator[job.exclusive ? "maintain" : "run"](() => job.jobFunc(store, settings, heartbeatData))
+        scheduledJobs.push(
+            new CronClass(job.interval, { name: job.name, timezone }, () =>
+                coordinator[job.exclusive ? "maintain" : "run"](() => job.jobFunc(store, settings, heartbeatData))
+            )
         );
-        scheduledJobs.push(cornerJob);
     }
     return scheduledJobs;
-};
+}
 
-const initBackgroundJobs = async function (
+async function initBackgroundJobs(
     store: SQLiteStore,
     coordinator: DatabaseMaintenanceCoordinator,
-    timezone,
-    settings,
+    timezone: string | undefined,
+    settings?: Settings,
     heartbeatData = null,
-    scheduledJobs = []
+    scheduledJobs: CronJobLike[] = []
 ) {
-    return scheduleBackgroundJobs(store, coordinator, timezone, Cron, settings, heartbeatData, scheduledJobs);
-};
+    return scheduleBackgroundJobs(store, coordinator, timezone, BunCron, settings, heartbeatData, scheduledJobs);
+}
 
-/**
- * Stop all background jobs if running
- * @returns {void}
- */
-const stopBackgroundJobs = function (scheduledJobs) {
+function stopBackgroundJobs(scheduledJobs: CronJobLike[]) {
     for (const job of scheduledJobs.splice(0)) {
         job.stop();
     }
-};
+}
 
 export { initBackgroundJobs, scheduleBackgroundJobs, stopBackgroundJobs };
