@@ -15,7 +15,7 @@ export const remoteBrowserSocketHandler = (socket, store, io, server) => {
         try {
             checkLogin(socket);
 
-            let remoteBrowserBean = await RemoteBrowser.save(store, remoteBrowser, remoteBrowserID, socket.userID);
+            let remoteBrowserModel = await RemoteBrowser.save(store, remoteBrowser, remoteBrowserID, socket.userID);
             if (remoteBrowserID) {
                 await server.getLoadedMonitorType("real-browser")?.resetRemoteBrowser(remoteBrowserID, socket.userID);
             }
@@ -25,7 +25,7 @@ export const remoteBrowserSocketHandler = (socket, store, io, server) => {
                 ok: true,
                 msg: "Saved.",
                 msgi18n: true,
-                id: remoteBrowserBean.id,
+                id: remoteBrowserModel.id,
             });
         } catch (e) {
             callback({

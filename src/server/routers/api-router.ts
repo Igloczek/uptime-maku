@@ -87,60 +87,60 @@ async function pushResponse(url, pushToken, server, store, heartbeatData, settin
 
             let isFirstBeat = true;
 
-            let bean = store.dispense("heartbeat");
-            bean.time = store.isoDateTimeMillis(dayjs.utc());
-            bean.monitor_id = monitor.id;
-            bean.ping = ping;
-            bean.msg = msg;
-            bean.downCount = previousHeartbeat?.downCount || 0;
+            let model = store.createModel("heartbeat");
+            model.time = store.isoDateTimeMillis(dayjs.utc());
+            model.monitor_id = monitor.id;
+            model.ping = ping;
+            model.msg = msg;
+            model.downCount = previousHeartbeat?.downCount || 0;
 
             if (previousHeartbeat) {
                 isFirstBeat = false;
-                bean.duration = dayjs(bean.time).diff(dayjs(previousHeartbeat.time), "second");
+                model.duration = dayjs(model.time).diff(dayjs(previousHeartbeat.time), "second");
             }
 
             if (await Monitor.isUnderMaintenance(store, monitor.id, server)) {
                 msg = "Monitor under maintenance";
-                bean.status = MAINTENANCE;
+                model.status = MAINTENANCE;
             } else {
-                determineStatus(statusFromParam, previousHeartbeat, monitor.maxretries, monitor.isUpsideDown(), bean);
+                determineStatus(statusFromParam, previousHeartbeat, monitor.maxretries, monitor.isUpsideDown(), model);
             }
 
             log.debug("router", `/api/push/ called at ${dayjs().format("YYYY-MM-DD HH:mm:ss.SSS")}`);
             log.debug("router", "PreviousStatus: " + previousHeartbeat?.status);
-            log.debug("router", "Current Status: " + bean.status);
+            log.debug("router", "Current Status: " + model.status);
 
-            bean.important = Monitor.isImportantBeat(isFirstBeat, previousHeartbeat?.status, bean.status);
+            model.important = Monitor.isImportantBeat(isFirstBeat, previousHeartbeat?.status, model.status);
             let shouldNotify = false;
 
-            if (Monitor.isImportantForNotification(isFirstBeat, previousHeartbeat?.status, bean.status)) {
-                bean.downCount = 0;
+            if (Monitor.isImportantForNotification(isFirstBeat, previousHeartbeat?.status, model.status)) {
+                model.downCount = 0;
                 shouldNotify = true;
-            } else if (bean.status === DOWN && monitor.resendInterval > 0) {
-                ++bean.downCount;
-                if (bean.downCount >= monitor.resendInterval) {
+            } else if (model.status === DOWN && monitor.resendInterval > 0) {
+                ++model.downCount;
+                if (model.downCount >= monitor.resendInterval) {
                     log.debug(
                         "monitor",
-                        `[${monitor.name}] sendNotification again: Down Count: ${bean.downCount} | Resend Interval: ${monitor.resendInterval}`
+                        `[${monitor.name}] sendNotification again: Down Count: ${model.downCount} | Resend Interval: ${monitor.resendInterval}`
                     );
                     shouldNotify = true;
-                    bean.downCount = 0;
+                    model.downCount = 0;
                 }
             }
 
-            await heartbeatData.commitWrite(bean);
+            await heartbeatData.commitWrite(model);
 
             if (shouldNotify) {
                 log.debug("monitor", `[${monitor.name}] sendNotification`);
-                await Monitor.sendNotification(isFirstBeat, monitor, bean, store, server);
+                await Monitor.sendNotification(isFirstBeat, monitor, model, store, server);
             }
 
-            server.io.to(monitor.user_id).emit("heartbeat", bean.toJSON());
+            server.io.to(monitor.user_id).emit("heartbeat", model.toJSON());
 
             await Monitor.sendStats(heartbeatData, server.io, monitor.id, monitor.user_id, settings);
 
             try {
-                new Prometheus(monitor, await monitor.getTags(store)).update(bean, undefined);
+                new Prometheus(monitor, await monitor.getTags(store)).update(model, undefined);
             } catch (e) {
                 log.error(
                     "prometheus",
@@ -446,13 +446,13 @@ async function badgeCertExpResponse(store, url, id, disableFrameSameOrigin) {
             badgeValues.message = "N/A";
             badgeValues.color = badgeConstants.naColor;
         } else {
-            const tlsInfoBean = await store.findOne("monitor_tls_info", "monitor_id = ?", [requestedMonitorId]);
+            const tlsInfoModel = await store.findOne("monitor_tls_info", "monitor_id = ?", [requestedMonitorId]);
 
-            if (!tlsInfoBean) {
+            if (!tlsInfoModel) {
                 badgeValues.message = "No/Bad Cert";
                 badgeValues.color = badgeConstants.naColor;
             } else {
-                const tlsInfo = JSON.parse(tlsInfoBean.info_json);
+                const tlsInfo = JSON.parse(tlsInfoModel.info_json);
 
                 if (!tlsInfo.valid) {
                     badgeValues.message = "Bad Cert";
@@ -552,10 +552,10 @@ function svgResponse(body, disableFrameSameOrigin) {
  * @param {object} previousHeartbeat The previous heartbeat object.
  * @param {number} maxretries The maximum number of retries allowed.
  * @param {boolean} isUpsideDown Indicates if the monitor is upside down.
- * @param {object} bean The new heartbeat object.
+ * @param {object} model The new heartbeat object.
  * @returns {void}
  */
-function determineStatus(status, previousHeartbeat, maxretries, isUpsideDown, bean) {
+function determineStatus(status, previousHeartbeat, maxretries, isUpsideDown, model) {
     if (isUpsideDown) {
         status = flipStatus(status);
     }
@@ -563,28 +563,28 @@ function determineStatus(status, previousHeartbeat, maxretries, isUpsideDown, be
     if (previousHeartbeat) {
         if (previousHeartbeat.status === UP && status === DOWN) {
             if (maxretries > 0 && previousHeartbeat.retries < maxretries) {
-                bean.retries = previousHeartbeat.retries + 1;
-                bean.status = PENDING;
+                model.retries = previousHeartbeat.retries + 1;
+                model.status = PENDING;
             } else {
-                bean.retries = 0;
-                bean.status = DOWN;
+                model.retries = 0;
+                model.status = DOWN;
             }
         } else if (previousHeartbeat.status === PENDING && status === DOWN && previousHeartbeat.retries < maxretries) {
-            bean.retries = previousHeartbeat.retries + 1;
-            bean.status = PENDING;
+            model.retries = previousHeartbeat.retries + 1;
+            model.status = PENDING;
         } else if (status === DOWN) {
-            bean.retries = previousHeartbeat.retries + 1;
-            bean.status = status;
+            model.retries = previousHeartbeat.retries + 1;
+            model.status = status;
         } else {
-            bean.retries = 0;
-            bean.status = status;
+            model.retries = 0;
+            model.status = status;
         }
     } else if (status === DOWN && maxretries > 0) {
-        bean.retries = 1;
-        bean.status = PENDING;
+        model.retries = 1;
+        model.status = PENDING;
     } else {
-        bean.retries = 0;
-        bean.status = status;
+        model.retries = 0;
+        model.status = status;
     }
 }
 

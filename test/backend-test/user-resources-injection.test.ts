@@ -11,7 +11,8 @@ import {
     sendProxyList,
     sendRemoteBrowserList,
 } from "@/server/client";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
+import { SQLiteStore } from "@/server/sqlite-store";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 import { DockerHost } from "@/server/docker";
 import { Notification } from "@/server/notification";
 import { Proxy } from "@/server/proxy";
@@ -23,7 +24,7 @@ const directories = [];
 async function createStore() {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-user-resources-"));
     directories.push(directory);
-    const store = new BunSQLiteRedbean();
+    const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
     await store.connect({
         sqlitePath: path.join(directory, "kuma.db"),
         templatePath: path.join(process.cwd(), "src/db/kuma.db"),

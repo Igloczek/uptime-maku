@@ -33,7 +33,7 @@ describe("Domain Expiry", () => {
         await testDb.destroy();
     });
 
-    test("imports directly in a fresh process without a model-registry cycle", async () => {
+    test("imports directly in a fresh process without a sqlite-model-mapping cycle", async () => {
         const child = Bun.spawn(
             [process.execPath, "-e", 'await import("@/server/model/domain_expiry"); process.stdout.write("ok")'],
             { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" }
@@ -204,7 +204,7 @@ describe("Domain Expiry", () => {
         };
         const manyDays = 3650;
         await settings.set("domainExpiryNotifyDays", [manyDays], "general");
-        const notif = testDb.store.convertToBean("notification", {
+        const notif = testDb.store.hydrateModel("notification", {
             config: JSON.stringify({
                 type: "webhook",
                 httpMethod: "post",
@@ -224,7 +224,7 @@ describe("Domain Expiry", () => {
 
     test("sendNotifications() handles domain with null expiry without sending NaN", async () => {
         // Regression test for bug: "Domain name will expire in NaN days"
-        // Mock findByDomainNameOrCreate to return a bean with null expiry
+        // Mock findByDomainNameOrCreate to return a model with null expiry
         const mockDomain = {
             domain: "test-null.com",
             expiry: null,
@@ -274,7 +274,7 @@ describe("Domain Expiry", () => {
     });
 
     test("sendNotifications() handles domain with undefined expiry without sending NaN", async () => {
-        // Mock findByDomainNameOrCreate to return a bean with undefined expiry (newly created bean scenario)
+        // Mock findByDomainNameOrCreate to return a model with undefined expiry (newly created model scenario)
         const mockDomain = {
             domain: "test-undefined.com",
             expiry: undefined,

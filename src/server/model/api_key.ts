@@ -1,9 +1,9 @@
 // @ts-nocheck
 
-import { BeanModel } from "@/server/bean-model";
+import { SQLiteModel } from "@/server/sqlite-model";
 import dayjs from "dayjs";
 
-class APIKey extends BeanModel {
+class APIKey extends SQLiteModel {
     /**
      * Get the current status of this API key
      * @returns {string} active, inactive or expired
@@ -56,21 +56,21 @@ class APIKey extends BeanModel {
      * Create a new API Key and store it in the database
      * @param {object} key Object sent by client
      * @param {int} userID ID of socket user
-     * @returns {Promise<bean>} API key
+     * @returns {Promise<model>} API key
      */
     static async save(store, key, userID) {
-        let bean;
-        bean = store.dispense("api_key");
+        let model;
+        model = store.createModel("api_key");
 
-        bean.key = key.key;
-        bean.name = key.name;
-        bean.user_id = userID;
-        bean.active = key.active;
-        bean.expires = key.expires;
+        model.key = key.key;
+        model.name = key.name;
+        model.user_id = userID;
+        model.active = key.active;
+        model.expires = key.expires;
 
-        await store.store(bean);
+        await store.saveModel(model);
 
-        return bean;
+        return model;
     }
 }
 

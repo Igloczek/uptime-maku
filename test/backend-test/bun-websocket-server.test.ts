@@ -5,7 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { BunRealtimeAdapter } from "@/server/bun-websocket-server";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
+import { SQLiteStore } from "@/server/sqlite-store";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 import { UptimeMakuServer } from "@/server/uptime-maku-server";
 import { Settings } from "@/server/settings";
 
@@ -61,7 +62,7 @@ describe("Bun WebSocket client source", () => {
 
     test("shares trustProxy invalidation and snapshot cache clears with injected settings", async () => {
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-settings-ws-"));
-        const store = new BunSQLiteRedbean();
+        const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         const settings = new Settings(store);
         await store.connect({
             sqlitePath: path.join(directory, "kuma.db"),

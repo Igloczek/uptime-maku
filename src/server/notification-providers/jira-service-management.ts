@@ -67,7 +67,7 @@ class JiraServiceManagement extends NotificationProvider {
 
     /**
      * Get axios config with Basic Auth for JSM
-     * @param {BeanModel} notification Notification details
+     * @param {SQLiteModel} notification Notification details
      * @returns {object} Axios config object
      */
     getConfig(notification) {
@@ -84,7 +84,7 @@ class JiraServiceManagement extends NotificationProvider {
 
     /**
      * Make POST request to Jira Service Management
-     * @param {BeanModel} notification Notification to send
+     * @param {SQLiteModel} notification Notification to send
      * @param {string} url Request url
      * @param {object} data Request body
      * @returns {Promise<string>} Success message

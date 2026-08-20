@@ -1,6 +1,6 @@
 import Database from "@/server/database";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
-import "@/server/model-registry";
+import { SQLiteStore } from "@/server/sqlite-store";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 import readline from "readline";
 
 import { initJWTSecret } from "@/server/server-auth-helpers";
@@ -41,7 +41,7 @@ const rl = readline.createInterface({
 });
 
 const main = async () => {
-    const store = new BunSQLiteRedbean();
+    const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
     if ("dry-run" in args) {
         console.log("Dry run mode, no changes will be made.");
     }

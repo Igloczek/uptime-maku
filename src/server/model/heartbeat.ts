@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { BeanModel } from "@/server/bean-model";
+import { SQLiteModel } from "@/server/sqlite-model";
 import zlib from "node:zlib";
 import { promisify } from "node:util";
 
@@ -13,7 +13,7 @@ const brotliDecompress = promisify(zlib.brotliDecompress);
  *      2 = PENDING
  *      3 = MAINTENANCE
  */
-class Heartbeat extends BeanModel {
+class Heartbeat extends SQLiteModel {
     /**
      * Return an object that ready to parse to JSON for public
      * Only show necessary data to public

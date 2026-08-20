@@ -25,13 +25,13 @@ export const apiKeySocketHandler = (socket, store, io, settings, responseCache) 
             clearKey = clearKey.slice(0, 40);
             let hashedKey = await passwordHash.generate(clearKey);
             key["key"] = hashedKey;
-            let bean = await APIKey.save(store, key, socket.userID);
+            let model = await APIKey.save(store, key, socket.userID);
 
             log.debug("apikeys", "Added API Key");
 
             // Append key ID and prefix to start of key separated by _, used to get
             // correct hash when validating key.
-            let formattedKey = "uk" + bean.id + "_" + clearKey;
+            let formattedKey = "uk" + model.id + "_" + clearKey;
             await sendAPIKeyList(store, io, socket);
 
             // Enable API auth if the user creates a key, otherwise only basic
@@ -43,7 +43,7 @@ export const apiKeySocketHandler = (socket, store, io, settings, responseCache) 
                 msg: "successAdded",
                 msgi18n: true,
                 key: formattedKey,
-                keyID: bean.id,
+                keyID: model.id,
             });
         } catch (e) {
             callback({

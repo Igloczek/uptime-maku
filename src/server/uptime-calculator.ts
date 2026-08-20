@@ -109,82 +109,82 @@ class UptimeCalculator {
         let now = this.getCurrentDate();
 
         // Load minutely data from database (recent 24 hours only)
-        let minutelyStatBeans = await this.store.find(
+        let minutelyStatModels = await this.store.find(
             "stat_minutely",
             " monitor_id = ? AND timestamp > ? ORDER BY timestamp",
             [monitorID, this.getMinutelyKey(now.subtract(24, "hour"), false)]
         );
 
-        for (let bean of minutelyStatBeans) {
+        for (let model of minutelyStatModels) {
             let data = {
-                up: bean.up,
-                down: bean.down,
-                avgPing: bean.ping,
-                minPing: bean.pingMin ?? bean.ping_min,
-                maxPing: bean.pingMax ?? bean.ping_max,
+                up: model.up,
+                down: model.down,
+                avgPing: model.ping,
+                minPing: model.pingMin ?? model.ping_min,
+                maxPing: model.pingMax ?? model.ping_max,
             };
 
-            if (bean.extras !== null && bean.extras !== undefined) {
+            if (model.extras !== null && model.extras !== undefined) {
                 data = {
                     ...data,
-                    ...JSON.parse(bean.extras),
+                    ...JSON.parse(model.extras),
                 };
             }
 
-            let key = bean.timestamp;
+            let key = model.timestamp;
             this.minutelyUptimeDataList.push(key, data);
         }
 
         // Load hourly data from database (recent 30 days only)
-        let hourlyStatBeans = await this.store.find(
+        let hourlyStatModels = await this.store.find(
             "stat_hourly",
             " monitor_id = ? AND timestamp > ? ORDER BY timestamp",
             [monitorID, this.getHourlyKey(now.subtract(30, "day"), false)]
         );
 
-        for (let bean of hourlyStatBeans) {
+        for (let model of hourlyStatModels) {
             let data = {
-                up: bean.up,
-                down: bean.down,
-                avgPing: bean.ping,
-                minPing: bean.pingMin ?? bean.ping_min,
-                maxPing: bean.pingMax ?? bean.ping_max,
+                up: model.up,
+                down: model.down,
+                avgPing: model.ping,
+                minPing: model.pingMin ?? model.ping_min,
+                maxPing: model.pingMax ?? model.ping_max,
             };
 
-            if (bean.extras !== null && bean.extras !== undefined) {
+            if (model.extras !== null && model.extras !== undefined) {
                 data = {
                     ...data,
-                    ...JSON.parse(bean.extras),
+                    ...JSON.parse(model.extras),
                 };
             }
 
-            this.hourlyUptimeDataList.push(bean.timestamp, data);
+            this.hourlyUptimeDataList.push(model.timestamp, data);
         }
 
         // Load daily data from database (recent 365 days only)
-        let dailyStatBeans = await this.store.find(
+        let dailyStatModels = await this.store.find(
             "stat_daily",
             " monitor_id = ? AND timestamp > ? ORDER BY timestamp",
             [monitorID, this.getDailyKey(now.subtract(365, "day"), false)]
         );
 
-        for (let bean of dailyStatBeans) {
+        for (let model of dailyStatModels) {
             let data = {
-                up: bean.up,
-                down: bean.down,
-                avgPing: bean.ping,
-                minPing: bean.pingMin ?? bean.ping_min,
-                maxPing: bean.pingMax ?? bean.ping_max,
+                up: model.up,
+                down: model.down,
+                avgPing: model.ping,
+                minPing: model.pingMin ?? model.ping_min,
+                maxPing: model.pingMax ?? model.ping_max,
             };
 
-            if (bean.extras !== null && bean.extras !== undefined) {
+            if (model.extras !== null && model.extras !== undefined) {
                 data = {
                     ...data,
-                    ...JSON.parse(bean.extras),
+                    ...JSON.parse(model.extras),
                 };
             }
 
-            this.dailyUptimeDataList.push(bean.timestamp, data);
+            this.dailyUptimeDataList.push(model.timestamp, data);
         }
     }
 

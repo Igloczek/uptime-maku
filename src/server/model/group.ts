@@ -1,22 +1,23 @@
 // @ts-nocheck
 
-import { BeanModel } from "@/server/bean-model";
+import { SQLiteModel } from "@/server/sqlite-model";
 
-class Group extends BeanModel {
+class Group extends SQLiteModel {
     /**
      * Return an object that ready to parse to JSON for public Only show
      * necessary data to public
+     * @param {SQLiteStore} store Store used to load related monitors
      * @param {boolean} showTags Should the JSON include monitor tags
      * @param {boolean} certExpiry Should JSON include info about
      * certificate expiry?
      * @returns {Promise<object>} Object ready to parse
      */
-    async toPublicJSON(showTags = false, certExpiry = false) {
-        let monitorBeanList = await this.getMonitorList();
+    async toPublicJSON(store, showTags = false, certExpiry = false) {
+        let monitorBeanList = await this.getMonitorList(store);
         let monitorList = [];
 
-        for (let bean of monitorBeanList) {
-            monitorList.push(await bean.toPublicJSON(showTags, certExpiry));
+        for (let model of monitorBeanList) {
+            monitorList.push(await model.toPublicJSON(store, showTags, certExpiry));
         }
 
         return {
@@ -29,12 +30,12 @@ class Group extends BeanModel {
 
     /**
      * Get all monitors
-     * @returns {Promise<Bean[]>} List of monitors
+     * @returns {Promise<Model[]>} List of monitors
      */
-    async getMonitorList() {
-        return this.__store.convertToBeans(
+    async getMonitorList(store) {
+        return store.hydrateModels(
             "monitor",
-            await this.__store.getAll(
+            await store.getAll(
                 `
             SELECT monitor.*, monitor_group.send_url, monitor_group.custom_url FROM monitor, monitor_group
             WHERE monitor.id = monitor_group.monitor_id

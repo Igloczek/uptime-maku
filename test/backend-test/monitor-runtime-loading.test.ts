@@ -5,11 +5,12 @@ import { MonitorRuntimeRegistry } from "@/server/monitor-runtime-registry";
 import { NotificationProviderRegistry } from "@/server/notification-provider-registry";
 import { UptimeMakuServer } from "@/server/uptime-maku-server";
 import { sendMonitorTypeList } from "@/server/client";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
+import { SQLiteStore } from "@/server/sqlite-store";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 import { Settings } from "@/server/settings";
 
 function createServer() {
-    const store = new BunSQLiteRedbean();
+    const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
     return new UptimeMakuServer(store, new Settings(store));
 }
 

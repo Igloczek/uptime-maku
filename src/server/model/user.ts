@@ -1,11 +1,11 @@
 // @ts-nocheck
 
-import { BeanModel } from "@/server/bean-model";
+import { SQLiteModel } from "@/server/sqlite-model";
 import passwordHash from "@/server/password-hash";
 import jwt from "@/server/jwt";
 import { shake256, SHAKE256_LENGTH } from "@/server/hash";
 
-class User extends BeanModel {
+class User extends SQLiteModel {
     /**
      * Reset user password
      * Fix #1510, as in the context reset-password.ts, there is no auto model mapping. Call this static function instead.

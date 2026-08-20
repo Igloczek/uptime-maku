@@ -34,7 +34,7 @@ import { flipStatus } from "@/util/status";
 import { checkStatusCode, encodeBase64 } from "@/server/http-utils";
 import { getTotalClientInRoom } from "@/server/client-room";
 import { getOAuthClientCredentialsToken } from "@/server/oauth-client-credentials";
-import { BeanModel } from "@/server/bean-model";
+import { SQLiteModel } from "@/server/sqlite-model";
 import { Notification } from "@/server/notification";
 import { demoMode } from "@/server/config";
 import { DockerHost } from "@/server/docker";
@@ -89,7 +89,7 @@ function runtimeNumber(value, fallback, { integer = false, safeInteger = false, 
  *      2 = PENDING
  *      3 = MAINTENANCE
  */
-class Monitor extends BeanModel {
+class Monitor extends SQLiteModel {
     getEffectiveTimeout() {
         const interval = runtimeNumber(this.interval, MIN_INTERVAL_SECOND, {
             integer: true,
@@ -178,12 +178,13 @@ class Monitor extends BeanModel {
     /**
      * Return an object that ready to parse to JSON for public Only show
      * necessary data to public
+     * @param {SQLiteStore} store Store used to load related data
      * @param {boolean} showTags Include tags in JSON
      * @param {boolean} certExpiry Include certificate expiry info in
      * JSON
      * @returns {Promise<object>} Object ready to parse
      */
-    async toPublicJSON(showTags = false, certExpiry = false) {
+    async toPublicJSON(store, showTags = false, certExpiry = false) {
         let obj = {
             id: this.id,
             name: this.name,
@@ -196,11 +197,11 @@ class Monitor extends BeanModel {
         }
 
         if (showTags) {
-            obj.tags = await this.getTags();
+            obj.tags = await this.getTags(store);
         }
 
         if (certExpiry) {
-            const { certExpiryDaysRemaining, validCert } = await this.getCertExpiry(this.id);
+            const { certExpiryDaysRemaining, validCert } = await this.getCertExpiry(this.id, store);
             obj.certExpiryDaysRemaining = certExpiryDaysRemaining;
             obj.validCert = validCert;
         }
@@ -362,7 +363,7 @@ class Monitor extends BeanModel {
      * @returns {Promise<LooseObject<any>[]>} List of tags on the
      * monitor
      */
-    async getTags(store = this.__store) {
+    async getTags(store) {
         return await store.getAll(
             "SELECT mt.*, tag.name, tag.color FROM monitor_tag mt JOIN tag ON mt.tag_id = tag.id WHERE mt.monitor_id = ? ORDER BY tag.name",
             [this.id]
@@ -375,11 +376,11 @@ class Monitor extends BeanModel {
      * @returns {Promise<LooseObject<any>>} Certificate expiry info for
      * monitor
      */
-    async getCertExpiry(monitorID, store = this.__store) {
-        let tlsInfoBean = await store.findOne("monitor_tls_info", "monitor_id = ?", [monitorID]);
+    async getCertExpiry(monitorID, store) {
+        let tlsInfoModel = await store.findOne("monitor_tls_info", "monitor_id = ?", [monitorID]);
         let tlsInfo;
-        if (tlsInfoBean) {
-            tlsInfo = JSON.parse(tlsInfoBean?.info_json);
+        if (tlsInfoModel) {
+            tlsInfo = JSON.parse(tlsInfoModel?.info_json);
             if (tlsInfo?.valid && tlsInfo?.certInfo?.daysRemaining) {
                 return {
                     certExpiryDaysRemaining: tlsInfo.certInfo.daysRemaining,
@@ -558,22 +559,22 @@ class Monitor extends BeanModel {
 
             let isFirstBeat = !previousBeat;
 
-            let bean = heartbeatData.store.dispense("heartbeat");
-            bean.monitor_id = this.id;
-            bean.time = heartbeatData.store.isoDateTimeMillis(dayjs.utc());
-            bean.status = DOWN;
-            bean.downCount = previousBeat?.downCount || 0;
+            let model = heartbeatData.store.createModel("heartbeat");
+            model.monitor_id = this.id;
+            model.time = heartbeatData.store.isoDateTimeMillis(dayjs.utc());
+            model.status = DOWN;
+            model.downCount = previousBeat?.downCount || 0;
 
             if (this.isUpsideDown()) {
-                bean.status = flipStatus(bean.status);
+                model.status = flipStatus(model.status);
             }
 
             try {
                 if (await Monitor.isUnderMaintenance(heartbeatData.store, this.id, server)) {
-                    bean.msg = "Monitor under maintenance";
-                    bean.status = MAINTENANCE;
+                    model.msg = "Monitor under maintenance";
+                    model.status = MAINTENANCE;
                 } else if (this.type === "http" || this.type === "keyword" || this.type === "json-query") {
-                    // Do not do any queries/high loading things before the "bean.ping"
+                    // Do not do any queries/high loading things before the "model.ping"
                     let startTime = dayjs().valueOf();
                     const deadline = startTime + this.timeout * 1000;
                     const remainingTimeout = () => {
@@ -681,8 +682,8 @@ class Monitor extends BeanModel {
                     // Make Request
                     let res = await this.makeHttpMonitorRequest(options, false, deadline);
 
-                    bean.msg = `${res.status} - ${res.statusText}`;
-                    bean.ping = dayjs().valueOf() - startTime;
+                    model.msg = `${res.status} - ${res.statusText}`;
+                    model.ping = dayjs().valueOf() - startTime;
 
                     // Bun fetch does not expose peer certificates, so inspect TLS separately when needed.
                     if (this.isEnabledExpiryNotification()) {
@@ -713,7 +714,7 @@ class Monitor extends BeanModel {
 
                     // in the frontend, the save response is only shown if the saveErrorResponse is set
                     if (this.getSaveResponse() && this.getSaveErrorResponse()) {
-                        await this.saveResponseData(bean, res.data);
+                        await this.saveResponseData(model, res.data);
                     }
 
                     // eslint-disable-next-line eqeqeq
@@ -722,7 +723,7 @@ class Monitor extends BeanModel {
                     }
 
                     if (this.type === "http") {
-                        bean.status = UP;
+                        model.status = UP;
                     } else if (this.type === "keyword") {
                         let data = res.data;
 
@@ -733,15 +734,15 @@ class Monitor extends BeanModel {
 
                         let keywordFound = data.includes(this.keyword);
                         if (keywordFound === !this.isInvertKeyword()) {
-                            bean.msg += ", keyword " + (keywordFound ? "is" : "not") + " found";
-                            bean.status = UP;
+                            model.msg += ", keyword " + (keywordFound ? "is" : "not") + " found";
+                            model.status = UP;
                         } else {
                             data = data.replace(/<[^>]*>?|[\n\r]|\s+/gm, " ").trim();
                             if (data.length > 50) {
                                 data = data.substring(0, 47) + "...";
                             }
                             throw new Error(
-                                bean.msg +
+                                model.msg +
                                     ", but keyword is " +
                                     (keywordFound ? "present" : "not") +
                                     " in [" +
@@ -761,8 +762,8 @@ class Monitor extends BeanModel {
                         );
 
                         if (status) {
-                            bean.status = UP;
-                            bean.msg = `JSON query passes (comparing ${response} ${this.jsonPathOperator} ${this.expectedValue})`;
+                            model.status = UP;
+                            model.msg = `JSON query passes (comparing ${response} ${this.jsonPathOperator} ${this.expectedValue})`;
                         } else {
                             throw new Error(
                                 `JSON query does not pass (comparing ${response} ${this.jsonPathOperator} ${this.expectedValue})`
@@ -771,7 +772,7 @@ class Monitor extends BeanModel {
                     }
                 } else if (this.type === "ping") {
                     const { ping } = await import("@/server/ping");
-                    bean.ping = await ping(
+                    model.ping = await ping(
                         this.hostname,
                         this.ping_count,
                         "",
@@ -780,8 +781,8 @@ class Monitor extends BeanModel {
                         this.timeout,
                         this.ping_per_request_timeout
                     );
-                    bean.msg = "";
-                    bean.status = UP;
+                    model.msg = "";
+                    model.status = UP;
                 } else if (this.type === "push") {
                     // Type: Push
                     log.debug(
@@ -801,7 +802,7 @@ class Monitor extends BeanModel {
                             previousBeat.status !== (this.isUpsideDown() ? DOWN : UP) ||
                             msSinceLastBeat > beatInterval * 1000 + bufferTime
                         ) {
-                            bean.duration = Math.round(msSinceLastBeat / 1000);
+                            model.duration = Math.round(msSinceLastBeat / 1000);
                             throw new Error("No heartbeat in the time window");
                         } else {
                             let timeout = beatInterval * 1000 - msSinceLastBeat;
@@ -817,7 +818,7 @@ class Monitor extends BeanModel {
                             return;
                         }
                     } else {
-                        bean.duration = beatInterval;
+                        model.duration = beatInterval;
                         throw new Error("No heartbeat in the time window");
                     }
                 } else if (this.type === "docker") {
@@ -869,22 +870,22 @@ class Monitor extends BeanModel {
                         throw Error("Container is in a paused state");
                     }
                     if (res.data.State.Restarting) {
-                        bean.status = PENDING;
-                        bean.msg = "Container is reporting it is currently restarting";
+                        model.status = PENDING;
+                        model.msg = "Container is reporting it is currently restarting";
                     } else if (res.data.State.Health && res.data.State.Health.Status !== "none") {
                         // if healthchecks are disabled (?), Health MAY not be present
                         if (res.data.State.Health.Status === "healthy") {
-                            bean.status = UP;
-                            bean.msg = "healthy";
+                            model.status = UP;
+                            model.msg = "healthy";
                         } else if (res.data.State.Health.Status === "unhealthy") {
                             throw Error("Container State is unhealthy according to its healthcheck");
                         } else {
-                            bean.status = PENDING;
-                            bean.msg = res.data.State.Health.Status;
+                            model.status = PENDING;
+                            model.msg = res.data.State.Health.Status;
                         }
                     } else {
-                        bean.status = UP;
-                        bean.msg = `Container has not reported health and is currently ${res.data.State.Status}. As it is running, it is considered UP. Consider adding a health check for better service visibility`;
+                        model.status = UP;
+                        model.msg = `Container has not reported health and is currently ${res.data.State.Status}. As it is running, it is considered UP. Consider adding a health check for better service visibility`;
                     }
                 } else if (this.type === "radius") {
                     let startTime = dayjs().valueOf();
@@ -911,31 +912,31 @@ class Monitor extends BeanModel {
                         this.timeout * 1000 * 0.5
                     );
 
-                    bean.msg = resp.code;
-                    bean.status = UP;
-                    bean.ping = dayjs().valueOf() - startTime;
+                    model.msg = resp.code;
+                    model.status = UP;
+                    model.ping = dayjs().valueOf() - startTime;
                 } else if (this.type in server.monitorTypeList) {
                     let startTime = dayjs().valueOf();
                     const monitorType = await server.getMonitorType(this.type);
                     if (!monitorType) {
                         throw new Error("Unknown Monitor Type");
                     }
-                    await monitorType.check(this, bean, server, heartbeatData);
+                    await monitorType.check(this, model, server, heartbeatData);
 
-                    if (!monitorType.allowCustomStatus && bean.status !== UP) {
+                    if (!monitorType.allowCustomStatus && model.status !== UP) {
                         throw new Error(
                             "The monitor implementation is incorrect, non-UP error must throw error inside check()"
                         );
                     }
 
-                    if (bean.ping === undefined || bean.ping === null) {
-                        bean.ping = dayjs().valueOf() - startTime;
+                    if (model.ping === undefined || model.ping === null) {
+                        model.ping = dayjs().valueOf() - startTime;
                     }
                 } else if (this.type === "kafka-producer") {
                     let startTime = dayjs().valueOf();
 
                     const { kafkaProducerAsync } = await import("@/server/kafka");
-                    bean.msg = await kafkaProducerAsync(
+                    model.msg = await kafkaProducerAsync(
                         JSON.parse(this.kafkaProducerBrokers),
                         this.kafkaProducerTopic,
                         this.kafkaProducerMessage,
@@ -949,16 +950,16 @@ class Monitor extends BeanModel {
                         },
                         JSON.parse(this.kafkaProducerSaslOptions)
                     );
-                    bean.status = UP;
-                    bean.ping = dayjs().valueOf() - startTime;
+                    model.status = UP;
+                    model.ping = dayjs().valueOf() - startTime;
                 } else {
                     throw new Error("Unknown Monitor Type");
                 }
 
                 if (this.isUpsideDown()) {
-                    bean.status = flipStatus(bean.status);
+                    model.status = flipStatus(model.status);
 
-                    if (bean.status === DOWN) {
+                    if (model.status === DOWN) {
                         throw new Error("Flip UP to DOWN");
                     }
                 }
@@ -966,18 +967,18 @@ class Monitor extends BeanModel {
                 retries = 0;
             } catch (error) {
                 if (error?.name === "CanceledError") {
-                    bean.msg = `timeout by AbortSignal (${this.timeout}s)`;
+                    model.msg = `timeout by AbortSignal (${this.timeout}s)`;
                 } else {
-                    bean.msg = error.message;
+                    model.msg = error.message;
                 }
 
                 if (this.getSaveErrorResponse() && error?.response?.data !== undefined) {
-                    await this.saveResponseData(bean, error.response.data);
+                    await this.saveResponseData(model, error.response.data);
                 }
 
                 // If UP come in here, it must be upside down mode
                 // Just reset the retries
-                if (this.isUpsideDown() && bean.status === UP) {
+                if (this.isUpsideDown() && model.status === UP) {
                     retries = 0;
                 } else if (this.type === "json-query" && this.retry_only_on_status_code_failure) {
                     // For json-query monitors with retry_only_on_status_code_failure enabled,
@@ -991,7 +992,7 @@ class Monitor extends BeanModel {
                         retries = 0;
                     } else if (this.maxretries > 0 && retries < this.maxretries) {
                         retries++;
-                        bean.status = PENDING;
+                        model.status = PENDING;
                     } else {
                         // Continue counting retries during DOWN
                         retries++;
@@ -1000,7 +1001,7 @@ class Monitor extends BeanModel {
                     // General retry logic for all other monitor types
                     if (this.maxretries > 0 && retries < this.maxretries) {
                         retries++;
-                        bean.status = PENDING;
+                        model.status = PENDING;
                     } else {
                         // Continue counting retries during DOWN
                         retries++;
@@ -1008,13 +1009,13 @@ class Monitor extends BeanModel {
                 }
             }
 
-            bean.retries = retries;
+            model.retries = retries;
 
             if (isStale()) {
                 return;
             }
 
-            if (bean.status !== MAINTENANCE && Boolean(this.domainExpiryNotification)) {
+            if (model.status !== MAINTENANCE && Boolean(this.domainExpiryNotification)) {
                 try {
                     const { default: DomainExpiry } = await import("@/server/model/domain_expiry");
                     const supportInfo = await DomainExpiry.checkSupport(this, server.settings);
@@ -1056,15 +1057,15 @@ class Monitor extends BeanModel {
                         previousBeat = await heartbeatData.latest(this.id);
                         retries = previousBeat?.retries || 0;
                         isFirstBeat = !previousBeat;
-                        bean = heartbeatData.store.dispense("heartbeat");
-                        bean.monitor_id = this.id;
-                        bean.time = heartbeatData.store.isoDateTimeMillis(dayjs.utc());
-                        bean.status = this.isUpsideDown() ? UP : DOWN;
-                        bean.downCount = previousBeat?.downCount || 0;
+                        model = heartbeatData.store.createModel("heartbeat");
+                        model.monitor_id = this.id;
+                        model.time = heartbeatData.store.isoDateTimeMillis(dayjs.utc());
+                        model.status = this.isUpsideDown() ? UP : DOWN;
+                        model.downCount = previousBeat?.downCount || 0;
 
                         if (await Monitor.isUnderMaintenance(heartbeatData.store, this.id, server)) {
-                            bean.msg = "Monitor under maintenance";
-                            bean.status = MAINTENANCE;
+                            model.msg = "Monitor under maintenance";
+                            model.status = MAINTENANCE;
                             retries = 0;
                         } else {
                             const bufferTime = 1000;
@@ -1083,30 +1084,30 @@ class Monitor extends BeanModel {
                                     this.scheduleHeartbeat(safeBeat, timeout);
                                     return null;
                                 }
-                                bean.duration = Math.round(msSinceLastBeat / 1000);
+                                model.duration = Math.round(msSinceLastBeat / 1000);
                             } else {
-                                bean.duration = beatInterval;
+                                model.duration = beatInterval;
                             }
-                            bean.msg = "No heartbeat in the time window";
-                            if (this.isUpsideDown() && bean.status === UP) {
+                            model.msg = "No heartbeat in the time window";
+                            if (this.isUpsideDown() && model.status === UP) {
                                 retries = 0;
                             } else if (this.maxretries > 0 && retries < this.maxretries) {
                                 retries++;
-                                bean.status = PENDING;
+                                model.status = PENDING;
                             } else {
                                 retries++;
                             }
                         }
-                        bean.retries = retries;
+                        model.retries = retries;
                     }
 
                     log.debug("monitor", `[${this.name}] Check isImportant`);
-                    const isImportant = Monitor.isImportantBeat(isFirstBeat, previousBeat?.status, bean.status);
+                    const isImportant = Monitor.isImportantBeat(isFirstBeat, previousBeat?.status, model.status);
                     let shouldNotify = false;
 
                     if (isImportant) {
-                        bean.important = true;
-                        if (Monitor.isImportantForNotification(isFirstBeat, previousBeat?.status, bean.status)) {
+                        model.important = true;
+                        if (Monitor.isImportantForNotification(isFirstBeat, previousBeat?.status, model.status)) {
                             shouldNotify = true;
                         } else {
                             log.debug(
@@ -1114,36 +1115,36 @@ class Monitor extends BeanModel {
                                 `[${this.name}] will not sendNotification because it is (or was) under maintenance`
                             );
                         }
-                        bean.downCount = 0;
+                        model.downCount = 0;
                     } else {
-                        bean.important = false;
-                        if (bean.status === DOWN && this.resendInterval > 0) {
-                            ++bean.downCount;
-                            if (bean.downCount >= this.resendInterval) {
+                        model.important = false;
+                        if (model.status === DOWN && this.resendInterval > 0) {
+                            ++model.downCount;
+                            if (model.downCount >= this.resendInterval) {
                                 log.debug(
                                     "monitor",
-                                    `[${this.name}] sendNotification again: Down Count: ${bean.downCount} | Resend Interval: ${this.resendInterval}`
+                                    `[${this.name}] sendNotification again: Down Count: ${model.downCount} | Resend Interval: ${this.resendInterval}`
                                 );
                                 shouldNotify = true;
-                                bean.downCount = 0;
+                                model.downCount = 0;
                             }
                         }
                     }
 
-                    if (bean.status === UP) {
+                    if (model.status === UP) {
                         log.debug(
                             "monitor",
-                            `Monitor #${this.id} '${this.name}': Successful Response: ${bean.ping} ms | Interval: ${beatInterval} seconds | Type: ${this.type}`
+                            `Monitor #${this.id} '${this.name}': Successful Response: ${model.ping} ms | Interval: ${beatInterval} seconds | Type: ${this.type}`
                         );
-                    } else if (bean.status === PENDING) {
+                    } else if (model.status === PENDING) {
                         if (this.retryInterval > 0) {
                             beatInterval = this.retryInterval;
                         }
                         log.warn(
                             "monitor",
-                            `Monitor #${this.id} '${this.name}': Pending: ${bean.msg} | Max retries: ${this.maxretries} | Retry: ${retries} | Retry Interval: ${beatInterval} seconds | Type: ${this.type}`
+                            `Monitor #${this.id} '${this.name}': Pending: ${model.msg} | Max retries: ${this.maxretries} | Retry: ${retries} | Retry Interval: ${beatInterval} seconds | Type: ${this.type}`
                         );
-                    } else if (bean.status === MAINTENANCE) {
+                    } else if (model.status === MAINTENANCE) {
                         log.warn(
                             "monitor",
                             `Monitor #${this.id} '${this.name}': Under Maintenance | Type: ${this.type}`
@@ -1151,18 +1152,18 @@ class Monitor extends BeanModel {
                     } else {
                         log.warn(
                             "monitor",
-                            `Monitor #${this.id} '${this.name}': Failing: ${bean.msg} | Interval: ${beatInterval} seconds | Type: ${this.type} | Down Count: ${bean.downCount} | Resend Interval: ${this.resendInterval}`
+                            `Monitor #${this.id} '${this.name}': Failing: ${model.msg} | Interval: ${beatInterval} seconds | Type: ${this.type} | Down Count: ${model.downCount} | Resend Interval: ${this.resendInterval}`
                         );
                     }
 
-                    const calculator = await heartbeatData.commitWrite(bean);
+                    const calculator = await heartbeatData.commitWrite(model);
                     if (isStale()) {
                         return null;
                     }
 
                     if (shouldNotify) {
                         log.debug("monitor", `[${this.name}] sendNotification`);
-                        await Monitor.sendNotification(isFirstBeat, this, bean, heartbeatData.store, server);
+                        await Monitor.sendNotification(isFirstBeat, this, model, heartbeatData.store, server);
                     }
 
                     if (isImportant) {
@@ -1172,16 +1173,16 @@ class Monitor extends BeanModel {
                     }
 
                     log.debug("monitor", `[${this.name}] Send to socket`);
-                    io.to(this.user_id).emit("heartbeat", bean.toJSON());
+                    io.to(this.user_id).emit("heartbeat", model.toJSON());
                     await Monitor.sendStats(heartbeatData, io, this.id, this.user_id, server.settings);
 
                     log.debug("monitor", `[${this.name}] prometheus.update`);
                     const data24h = calculator.get24Hour();
                     const data30d = calculator.get30Day();
                     const data1y = calculator.get1Year();
-                    this.prometheus?.update(bean, tlsInfo, { data24h, data30d, data1y });
+                    this.prometheus?.update(model, tlsInfo, { data24h, data30d, data1y });
 
-                    previousBeat = bean;
+                    previousBeat = model;
                     return calculator;
                 })
             );
@@ -1193,7 +1194,7 @@ class Monitor extends BeanModel {
             if (!isStale()) {
                 log.debug("monitor", `[${this.name}] SetTimeout for next check.`);
 
-                let intervalRemainingMs = Math.max(1, beatInterval * 1000 - dayjs().diff(dayjs.utc(bean.time)));
+                let intervalRemainingMs = Math.max(1, beatInterval * 1000 - dayjs().diff(dayjs.utc(model.time)));
 
                 log.debug("monitor", `[${this.name}] Next heartbeat in: ${intervalRemainingMs}ms`);
 
@@ -1276,11 +1277,11 @@ class Monitor extends BeanModel {
 
     /**
      * Save response body to a heartbeat if response saving is enabled.
-     * @param {import("redbean-node").Bean} bean Heartbeat bean to populate.
+     * @param {object} model Heartbeat model to populate.
      * @param {unknown} data Response payload.
      * @returns {void}
      */
-    async saveResponseData(bean, data) {
+    async saveResponseData(model, data) {
         if (data === undefined) {
             return;
         }
@@ -1300,7 +1301,7 @@ class Monitor extends BeanModel {
         }
 
         // Offload brotli compression from main event loop to libuv thread pool
-        bean.response = (await brotliCompress(Buffer.from(responseData, "utf8"))).toString("base64");
+        model.response = (await brotliCompress(Buffer.from(responseData, "utf8"))).toString("base64");
     }
 
     /**
@@ -1308,7 +1309,7 @@ class Monitor extends BeanModel {
      * @param {object} options HTTP request options
      * @returns {Promise<void>}
      */
-    async assertFetchHttpTransportSupported(options = {}, store = this.__store) {
+    async assertFetchHttpTransportSupported(options = {}, store) {
         if (this.auth_method === "ntlm") {
             throw new Error("NTLM monitor authentication is not supported by the Bun fetch HTTP client");
         }
@@ -1428,16 +1429,16 @@ class Monitor extends BeanModel {
      * @param {object} checkCertificateResult Certificate to update
      * @returns {Promise<object>} Updated certificate
      */
-    async updateTlsInfo(checkCertificateResult, store = this.__store) {
-        let tlsInfoBean = await store.findOne("monitor_tls_info", "monitor_id = ?", [this.id]);
+    async updateTlsInfo(checkCertificateResult, store) {
+        let tlsInfoModel = await store.findOne("monitor_tls_info", "monitor_id = ?", [this.id]);
 
-        if (tlsInfoBean == null) {
-            tlsInfoBean = store.dispense("monitor_tls_info");
-            tlsInfoBean.monitor_id = this.id;
+        if (tlsInfoModel == null) {
+            tlsInfoModel = store.createModel("monitor_tls_info");
+            tlsInfoModel.monitor_id = this.id;
         } else {
             // Clear sent history if the cert changed.
             try {
-                let oldCertInfo = JSON.parse(tlsInfoBean.info_json);
+                let oldCertInfo = JSON.parse(tlsInfoModel.info_json);
 
                 let isValidObjects =
                     oldCertInfo && oldCertInfo.certInfo && checkCertificateResult && checkCertificateResult.certInfo;
@@ -1460,8 +1461,8 @@ class Monitor extends BeanModel {
             } catch (e) {}
         }
 
-        tlsInfoBean.info_json = JSON.stringify(checkCertificateResult);
-        await store.store(tlsInfoBean);
+        tlsInfoModel.info_json = JSON.stringify(checkCertificateResult);
+        await store.saveModel(tlsInfoModel);
 
         return checkCertificateResult;
     }
@@ -1624,23 +1625,23 @@ class Monitor extends BeanModel {
      * Send a notification about a monitor
      * @param {boolean} isFirstBeat Is this beat the first of this monitor?
      * @param {Monitor} monitor The monitor to send a notification about
-     * @param {import("@/server/model/heartbeat")} bean Status information about monitor
+     * @param {import("@/server/model/heartbeat")} model Status information about monitor
      * @returns {Promise<void>}
      */
-    static async sendNotification(isFirstBeat, monitor, bean, store, server) {
-        if (!isFirstBeat || bean.status === DOWN) {
+    static async sendNotification(isFirstBeat, monitor, model, store, server) {
+        if (!isFirstBeat || model.status === DOWN) {
             const notificationList = await Monitor.getNotificationList(monitor, store);
 
             let text;
-            if (bean.status === UP) {
+            if (model.status === UP) {
                 text = "✅ Up";
             } else {
                 text = "🔴 Down";
             }
 
-            let msg = `[${monitor.name}] [${text}] ${bean.msg}`;
+            let msg = `[${monitor.name}] [${text}] ${model.msg}`;
 
-            const heartbeatJSON = await bean.toJSONAsync({ decodeResponse: true });
+            const heartbeatJSON = await model.toJSONAsync({ decodeResponse: true });
             const monitorData = [{ id: monitor.id, active: monitor.active, name: monitor.name }];
             const preloadData = await Monitor.preparePreloadData(store, monitorData, server);
             // Prevent if the msg is undefined, notifications such as Discord cannot send out.
@@ -1658,7 +1659,7 @@ class Monitor extends BeanModel {
 
             // Calculate downtime tracking information when service comes back up
             // This makes downtime information available to all notification providers
-            if (bean.status === UP && monitor.id) {
+            if (model.status === UP && monitor.id) {
                 try {
                     // Filter by important = 1 to get the state transition heartbeat (e.g. UP→DOWN),
                     // not the most recent DOWN heartbeat which would be the last check before recovery.
@@ -2291,7 +2292,7 @@ class Monitor extends BeanModel {
      * @param {object} tlsInfo Information about the TLS connection
      * @returns {Promise<void>}
      */
-    async handleTlsInfo(tlsInfo, providerRegistry, settings, store = this.__store) {
+    async handleTlsInfo(tlsInfo, providerRegistry, settings, store) {
         if (!rootCertificates) {
             const { rootCertificatesFingerprints } = await import("@/server/tls-cert");
             rootCertificates ??= rootCertificatesFingerprints();

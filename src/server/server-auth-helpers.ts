@@ -5,19 +5,19 @@ import passwordHash from "@/server/password-hash";
 
 /**
  * Init or reset JWT secret
- * @returns {Promise<Bean>} JWT secret
+ * @returns {Promise<Model>} JWT secret
  */
 export const initJWTSecret = async (store) => {
-    let jwtSecretBean = await store.findOne("setting", " `key` = ? ", ["jwtSecret"]);
+    let jwtSecretModel = await store.findOne("setting", " `key` = ? ", ["jwtSecret"]);
 
-    if (!jwtSecretBean) {
-        jwtSecretBean = store.dispense("setting");
-        jwtSecretBean.key = "jwtSecret";
+    if (!jwtSecretModel) {
+        jwtSecretModel = store.createModel("setting");
+        jwtSecretModel.key = "jwtSecret";
     }
 
-    jwtSecretBean.value = genSecret();
-    await store.store(jwtSecretBean);
-    return jwtSecretBean;
+    jwtSecretModel.value = genSecret();
+    await store.saveModel(jwtSecretModel);
+    return jwtSecretModel;
 };
 
 /**
@@ -33,7 +33,7 @@ export const decodeJwt = (jwt) => {
  * For logged-in users, double-check the password
  * @param {Socket} socket Socket.io instance
  * @param {string} currentPassword Password to validate
- * @returns {Promise<Bean>} User
+ * @returns {Promise<Model>} User
  * @throws The current password is not a string
  * @throws The provided password is not correct
  */

@@ -266,10 +266,10 @@ class GlobalpingMonitorType extends MonitorType {
      * @param {Monitor} monitor - The monitor object.
      * @param {Heartbeat} heartbeat - The heartbeat object.
      * @param {boolean} hasAPIToken - Whether the monitor has an API token.
-     * @param {object} redbean - The SQLite store.
+     * @param {object} store - The SQLite store.
      * @returns {Promise<void>} A promise that resolves when the HTTP monitor is handled.
      */
-    async dns(client, monitor, heartbeat, hasAPIToken, redbean, clientOptions, deadline) {
+    async dns(client, monitor, heartbeat, hasAPIToken, store, clientOptions, deadline) {
         const opts = {
             type: "dns",
             target: monitor.hostname,
@@ -341,7 +341,7 @@ class GlobalpingMonitorType extends MonitorType {
         }
 
         if (monitor.dns_last_result !== dnsMessage && dnsMessage !== undefined) {
-            await redbean.exec("UPDATE `monitor` SET dns_last_result = ? WHERE id = ? ", [dnsMessage, monitor.id]);
+            await store.exec("UPDATE `monitor` SET dns_last_result = ? WHERE id = ? ", [dnsMessage, monitor.id]);
         }
 
         heartbeat.ping = result.timings.total || 0;
@@ -519,14 +519,14 @@ class GlobalpingMonitorType extends MonitorType {
             throw new Error(this.formatResponse(probe, `TLS certificate is not authorized: ${tlsInfo.error}`));
         }
 
-        let tlsInfoBean = await this.store.findOne("monitor_tls_info", "monitor_id = ?", [monitor.id]);
+        let tlsInfoModel = await this.store.findOne("monitor_tls_info", "monitor_id = ?", [monitor.id]);
 
-        if (tlsInfoBean == null) {
-            tlsInfoBean = this.store.dispense("monitor_tls_info");
-            tlsInfoBean.monitor_id = monitor.id;
+        if (tlsInfoModel == null) {
+            tlsInfoModel = this.store.createModel("monitor_tls_info");
+            tlsInfoModel.monitor_id = monitor.id;
         } else {
             try {
-                let oldCertInfo = JSON.parse(tlsInfoBean.info_json);
+                let oldCertInfo = JSON.parse(tlsInfoModel.info_json);
 
                 if (
                     oldCertInfo &&
@@ -556,8 +556,8 @@ class GlobalpingMonitorType extends MonitorType {
             },
         };
 
-        tlsInfoBean.info_json = JSON.stringify(certResult);
-        await this.store.store(tlsInfoBean);
+        tlsInfoModel.info_json = JSON.stringify(certResult);
+        await this.store.saveModel(tlsInfoModel);
 
         if (monitor.prometheus) {
             monitor.prometheus.update(null, certResult);

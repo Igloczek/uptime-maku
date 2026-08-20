@@ -34,9 +34,9 @@ async function getUniqueRelationIDs(store, items, table, userID = null) {
 async function writeRelations(store, maintenanceID, ids, table, foreignKey) {
     await store.exec(`DELETE FROM ${table} WHERE maintenance_id = ?`, [maintenanceID]);
     for (const id of ids) {
-        const bean = store.dispense(table);
-        bean.import({ maintenance_id: maintenanceID, [foreignKey]: id });
-        await store.store(bean);
+        const model = store.createModel(table);
+        model.import({ maintenance_id: maintenanceID, [foreignKey]: id });
+        await store.saveModel(model);
     }
 }
 
@@ -84,7 +84,7 @@ export const maintenanceSocketHandler = (socket, store, server, responseCache) =
             callback = relations;
             relations = null;
         }
-        let bean;
+        let model;
         let transaction;
         let maintenanceID;
         try {
@@ -93,10 +93,10 @@ export const maintenanceSocketHandler = (socket, store, server, responseCache) =
             log.debug("maintenance", maintenance);
 
             const relationIDs = await validateRelations(store, relations, socket.userID);
-            bean = await Maintenance.jsonToBean(store.dispense("maintenance"), maintenance);
-            bean.user_id = socket.userID;
+            model = await Maintenance.jsonToModel(store.createModel("maintenance"), maintenance);
+            model.user_id = socket.userID;
             transaction = await store.begin();
-            maintenanceID = await transaction.store(bean);
+            maintenanceID = await transaction.saveModel(model);
             if (relationIDs) {
                 await writeRelations(
                     transaction,
@@ -113,11 +113,11 @@ export const maintenanceSocketHandler = (socket, store, server, responseCache) =
                     "status_page_id"
                 );
             }
-            await bean.run(store, server, true, true, responseCache);
+            await model.run(store, server, true, true, responseCache);
             await transaction.commit();
             transaction = null;
         } catch (e) {
-            bean?.stop();
+            model?.stop();
             await transaction?.rollback();
             callback({
                 ok: false,
@@ -125,7 +125,7 @@ export const maintenanceSocketHandler = (socket, store, server, responseCache) =
             });
             return;
         }
-        server.maintenanceList[maintenanceID] = bean;
+        server.maintenanceList[maintenanceID] = model;
         clearResponseCache(responseCache);
         callback({
             ok: true,
@@ -142,18 +142,18 @@ export const maintenanceSocketHandler = (socket, store, server, responseCache) =
             callback = relations;
             relations = null;
         }
-        let bean;
+        let model;
         let draft;
         try {
             checkLogin(socket);
 
-            bean = getOwnedMaintenance(server, maintenance?.id, socket.userID);
+            model = getOwnedMaintenance(server, maintenance?.id, socket.userID);
             const relationIDs = await validateRelations(store, relations, socket.userID);
-            draft = await Maintenance.jsonToBean(store.dispense("maintenance").import(bean.export()), maintenance);
+            draft = await Maintenance.jsonToModel(store.createModel("maintenance").import(model.export()), maintenance);
             const transaction = await store.begin();
             try {
-                bean.stop();
-                await transaction.store(draft);
+                model.stop();
+                await transaction.saveModel(draft);
                 if (relationIDs) {
                     await writeRelations(
                         transaction,
@@ -175,7 +175,7 @@ export const maintenanceSocketHandler = (socket, store, server, responseCache) =
             } catch (error) {
                 draft.stop();
                 await transaction.rollback();
-                await bean.run(store, server, true, true, responseCache);
+                await model.run(store, server, true, true, responseCache);
                 throw error;
             }
         } catch (e) {
@@ -186,13 +186,13 @@ export const maintenanceSocketHandler = (socket, store, server, responseCache) =
             });
             return;
         }
-        server.maintenanceList[bean.id] = draft;
+        server.maintenanceList[model.id] = draft;
         clearResponseCache(responseCache);
         callback({
             ok: true,
             msg: "Saved.",
             msgi18n: true,
-            maintenanceID: bean.id,
+            maintenanceID: model.id,
         });
         await publishMaintenanceList(server, socket);
     });
@@ -254,11 +254,11 @@ export const maintenanceSocketHandler = (socket, store, server, responseCache) =
 
             log.debug("maintenance", `Get Maintenance: ${maintenanceID} User ID: ${socket.userID}`);
 
-            let bean = getOwnedMaintenance(server, maintenanceID, socket.userID);
+            let model = getOwnedMaintenance(server, maintenanceID, socket.userID);
 
             callback({
                 ok: true,
-                maintenance: await bean.toJSON(server),
+                maintenance: await model.toJSON(server),
             });
         } catch (e) {
             callback({
@@ -377,7 +377,7 @@ export const maintenanceSocketHandler = (socket, store, server, responseCache) =
             const active = maintenance.active;
             maintenance.active = false;
             try {
-                await store.store(maintenance);
+                await store.saveModel(maintenance);
             } catch (error) {
                 maintenance.active = active;
                 throw error;
@@ -412,12 +412,12 @@ export const maintenanceSocketHandler = (socket, store, server, responseCache) =
             const active = maintenance.active;
             maintenance.active = true;
             try {
-                await store.store(maintenance);
+                await store.saveModel(maintenance);
                 await maintenance.run(store, server, true, true, responseCache);
             } catch (error) {
                 maintenance.stop();
                 maintenance.active = active;
-                await store.store(maintenance);
+                await store.saveModel(maintenance);
                 throw error;
             }
 

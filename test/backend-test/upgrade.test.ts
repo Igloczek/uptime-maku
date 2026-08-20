@@ -6,7 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { Database as BunDatabase } from "bun:sqlite";
 import { applySqlFile } from "@/db/schema/sql-utils";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
+import { SQLiteStore } from "@/server/sqlite-store";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 import { SCHEMA_VERSION_KEY, getSchemaVersion } from "@/server/db-migrations";
 
 const projectRoot = path.join(import.meta.dirname, "../..");
@@ -57,7 +58,7 @@ describe("Upstream Kuma upgrade", () => {
         const sql = fs.readFileSync(baselineFixturePath, "utf8");
         loadSqlFixture(dbPath, sql);
 
-        store = new BunSQLiteRedbean();
+        store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         await store.connect({
             sqlitePath: dbPath,
             templatePath: dbPath,
@@ -73,9 +74,7 @@ describe("Upstream Kuma upgrade", () => {
     test("001-upstream-baseline migrates upstream Kuma data and sets schema version", async () => {
         expect(await getSchemaVersion(store)).toBe(1);
 
-        const schemaVersion = await store.getCell('SELECT value FROM setting WHERE "key" = ?', [
-            SCHEMA_VERSION_KEY,
-        ]);
+        const schemaVersion = await store.getCell('SELECT value FROM setting WHERE "key" = ?', [SCHEMA_VERSION_KEY]);
         expect(schemaVersion).toBe("1");
 
         const gamedigGame = await store.getCell("SELECT game FROM monitor WHERE name = ?", ["GameDig TF2"]);
@@ -143,7 +142,7 @@ describe("Upstream Kuma Knex end-state", () => {
 
         expect(readSettingValue(dbPath, SCHEMA_VERSION_KEY)).toBeUndefined();
 
-        store = new BunSQLiteRedbean();
+        store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         await store.connect({
             sqlitePath: dbPath,
             templatePath: dbPath,
@@ -202,7 +201,7 @@ describe("Fresh Uptime Maku template", () => {
 
         const beforeUserCount = readUserCount(dbPath);
 
-        store = new BunSQLiteRedbean();
+        store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         await store.connect({
             sqlitePath: dbPath,
             templatePath: dbPath,
@@ -222,7 +221,8 @@ describe("Upgrade transaction recovery", () => {
         loadSqlFixture(dbPath, fs.readFileSync(baselineFixturePath, "utf8"));
         let insideTransaction = false;
         let failFirstDataStatement = true;
-        const store = new BunSQLiteRedbean({
+        const store = new SQLiteStore({
+            modelMapping: SQLITE_MODEL_MAPPING,
             databaseFactory(sqlitePath, options) {
                 const db = new BunDatabase(sqlitePath, options);
                 return {

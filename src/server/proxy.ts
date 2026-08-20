@@ -10,20 +10,20 @@ class Proxy {
      * @param {object} proxy Proxy to store
      * @param {number} proxyID ID of proxy to update
      * @param {number} userID ID of user the proxy belongs to
-     * @returns {Promise<Bean>} Updated proxy
+     * @returns {Promise<Model>} Updated proxy
      */
     static async save(store, proxy, proxyID, userID) {
         const validated = validateProxyDefinition(proxy);
-        let bean;
+        let model;
 
         if (proxyID) {
-            bean = await store.findOne("proxy", " id = ? AND user_id = ? ", [proxyID, userID]);
+            model = await store.findOne("proxy", " id = ? AND user_id = ? ", [proxyID, userID]);
 
-            if (!bean) {
+            if (!model) {
                 throw new Error("proxy not found");
             }
         } else {
-            bean = store.dispense("proxy");
+            model = store.createModel("proxy");
         }
 
         // When proxy is default update deactivate old default proxy
@@ -31,16 +31,16 @@ class Proxy {
             await store.exec("UPDATE proxy SET `default` = 0 WHERE `default` = 1 AND user_id = ?", [userID]);
         }
 
-        bean.user_id = userID;
-        Object.assign(bean, validated);
+        model.user_id = userID;
+        Object.assign(model, validated);
 
-        await store.store(bean);
+        await store.saveModel(model);
 
         if (proxy.applyExisting) {
-            await applyProxyEveryMonitor(store, bean.id, userID);
+            await applyProxyEveryMonitor(store, model.id, userID);
         }
 
-        return bean;
+        return model;
     }
 
     /**
@@ -50,9 +50,9 @@ class Proxy {
      * @returns {Promise<void>}
      */
     static async delete(store, proxyID, userID) {
-        const bean = await store.findOne("proxy", " id = ? AND user_id = ? ", [proxyID, userID]);
+        const model = await store.findOne("proxy", " id = ? AND user_id = ? ", [proxyID, userID]);
 
-        if (!bean) {
+        if (!model) {
             throw new Error("proxy not found");
         }
 
@@ -60,7 +60,7 @@ class Proxy {
         await store.exec("UPDATE monitor SET proxy_id = null WHERE proxy_id = ?", [proxyID]);
 
         // Delete proxy from list
-        await store.trash(bean);
+        await store.deleteModel(model);
     }
 
     /**

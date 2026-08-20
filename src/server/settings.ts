@@ -74,14 +74,14 @@ class Settings {
      * @returns {Promise<void>}
      */
     async set(key, value, type = null) {
-        let bean = await this.store.findOne("setting", " `key` = ? ", [key]);
-        if (!bean) {
-            bean = this.store.dispense("setting");
-            bean.key = key;
+        let model = await this.store.findOne("setting", " `key` = ? ", [key]);
+        if (!model) {
+            model = this.store.createModel("setting");
+            model.key = key;
         }
-        bean.type = type;
-        bean.value = JSON.stringify(value);
-        await this.store.store(bean);
+        model.type = type;
+        model.value = JSON.stringify(value);
+        await this.store.saveModel(model);
 
         this.deleteCache([key]);
     }
@@ -89,7 +89,7 @@ class Settings {
     /**
      * Get settings based on type
      * @param {string} type The type of setting
-     * @returns {Promise<Bean>} Settings
+     * @returns {Promise<Model>} Settings
      */
     async getSettings(type) {
         let list = await this.store.getAll("SELECT `key`, `value` FROM setting WHERE `type` = ? ", [type]);
@@ -119,17 +119,17 @@ class Settings {
         let promiseList = [];
 
         for (let key of keyList) {
-            let bean = await this.store.findOne("setting", " `key` = ? ", [key]);
+            let model = await this.store.findOne("setting", " `key` = ? ", [key]);
 
-            if (bean == null) {
-                bean = this.store.dispense("setting");
-                bean.type = type;
-                bean.key = key;
+            if (model == null) {
+                model = this.store.createModel("setting");
+                model.type = type;
+                model.key = key;
             }
 
-            if (bean.type === type) {
-                bean.value = JSON.stringify(data[key]);
-                promiseList.push(this.store.store(bean));
+            if (model.type === type) {
+                model.value = JSON.stringify(data[key]);
+                promiseList.push(this.store.saveModel(model));
             }
         }
 

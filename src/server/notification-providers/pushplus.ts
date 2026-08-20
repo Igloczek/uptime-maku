@@ -9,7 +9,7 @@ class PushPlus extends NotificationProvider {
 
     /**
      * @inheritdoc
-     * @param {BeanModel} notification Notification object
+     * @param {SQLiteModel} notification Notification object
      * @param {string} msg Message content
      * @param {?object} monitorJSON Monitor details
      * @param {?object} heartbeatJSON Heartbeat details

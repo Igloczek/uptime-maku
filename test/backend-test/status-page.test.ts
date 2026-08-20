@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import StatusPage from "@/server/model/status_page";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
+import { SQLiteStore } from "@/server/sqlite-store";
 import { statusPageSocketHandler } from "@/server/socket-handlers/status-page-socket-handler";
 import { createResponseCache } from "@/server/bun-response";
 import dayjs from "dayjs";
@@ -20,7 +20,7 @@ import { frontendEntryAssets } from "@/server/generated/frontend-entry-assets";
 import { hasEmbeddedAsset } from "@/server/generated/embedded-assets";
 import { markdownToPlainText, renderStatusPageDocument } from "@/server/status-page-document";
 import { handleStatusPageRequest } from "@/server/routers/status-page-router";
-import "@/server/model-registry";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 
 dayjs.extend(utc);
 
@@ -209,8 +209,8 @@ describe("StatusPage", () => {
 
     test("keeps slug and domain mappings isolated between explicit stores", async () => {
         const dir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-status-page-stores-"));
-        const first = new BunSQLiteRedbean();
-        const second = new BunSQLiteRedbean();
+        const first = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
+        const second = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         try {
             await Promise.all([
                 first.connect({
@@ -254,7 +254,7 @@ describe("StatusPage", () => {
 
     test("rolls back when the first domain-mapping statement fails", async () => {
         const dir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-status-page-transaction-"));
-        const store = new BunSQLiteRedbean();
+        const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         await store.connect({
             sqlitePath: path.join(dir, "kuma.db"),
             templatePath: path.join(process.cwd(), "src/db/kuma.db"),
@@ -292,7 +292,7 @@ describe("StatusPage", () => {
 
     test("keeps status page config and cache unchanged when CNAME replacement rolls back", async () => {
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-status-page-save-"));
-        const store = new BunSQLiteRedbean();
+        const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         const handlers = new Map();
         const domains = {};
         const server = { entryPage: "dashboard", statusPageDomainMappingList: domains };
@@ -402,7 +402,7 @@ describe("StatusPage", () => {
 
     test("reloads the owned domain cache immediately after deleting a status page", async () => {
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-status-page-delete-"));
-        const store = new BunSQLiteRedbean();
+        const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         const handlers = new Map();
         const domains = {};
         const server = { entryPage: "dashboard", statusPageDomainMappingList: domains };

@@ -10,8 +10,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import Maintenance from "@/server/model/maintenance";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
-import "@/server/model-registry";
+import { SQLiteStore } from "@/server/sqlite-store";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 import { cachedResponse, clearResponseCache, createResponseCache, textResponse } from "@/server/bun-response";
 import { UptimeMakuServer } from "@/server/uptime-maku-server";
 import { Settings } from "@/server/settings";
@@ -29,13 +29,13 @@ describe("maintenance validation and timer lifecycle", () => {
     let originals;
 
     beforeEach(() => {
-        runtimeStore = new BunSQLiteRedbean();
+        runtimeStore = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         runtimeSettings = new Settings(runtimeStore);
         runtimeServer = new UptimeMakuServer(runtimeStore, runtimeSettings);
         responseCache = createResponseCache();
         originals = {
             begin: runtimeStore.begin,
-            store: runtimeStore.store,
+            saveModel: runtimeStore.saveModel,
             findOne: runtimeStore.findOne,
             sendMaintenanceList: runtimeServer.sendMaintenanceList,
             sendMaintenanceListByUserID: runtimeServer.sendMaintenanceListByUserID,
@@ -46,7 +46,7 @@ describe("maintenance validation and timer lifecycle", () => {
     afterEach(async () => {
         global.clearTimeout = originalClearTimeout;
         runtimeStore.begin = originals.begin;
-        runtimeStore.store = originals.store;
+        runtimeStore.saveModel = originals.saveModel;
         runtimeStore.findOne = originals.findOne;
         runtimeServer.sendMaintenanceList = originals.sendMaintenanceList;
         runtimeServer.sendMaintenanceListByUserID = originals.sendMaintenanceListByUserID;
@@ -110,7 +110,7 @@ describe("maintenance validation and timer lifecycle", () => {
                 ],
             },
         ]) {
-            await expect(Maintenance.jsonToBean(new Maintenance(), invalid)).rejects.toThrow();
+            await expect(Maintenance.jsonToModel(new Maintenance(), invalid)).rejects.toThrow();
         }
     });
 
@@ -119,7 +119,7 @@ describe("maintenance validation and timer lifecycle", () => {
         global.clearTimeout = (timer) => clearedTimers.push(timer);
         const stoppedJobs = [];
         const maintenance = {
-            beanMeta: {
+            modelMeta: {
                 job: { stop: () => stoppedJobs.push("start") },
                 endJob: { stop: () => stoppedJobs.push("end") },
                 durationTimeout: 42,
@@ -130,9 +130,9 @@ describe("maintenance validation and timer lifecycle", () => {
 
         expect(stoppedJobs).toEqual(["start", "end"]);
         expect(clearedTimers).toEqual([42]);
-        expect(maintenance.beanMeta.job).toBeUndefined();
-        expect(maintenance.beanMeta.endJob).toBeUndefined();
-        expect(maintenance.beanMeta.durationTimeout).toBeUndefined();
+        expect(maintenance.modelMeta.job).toBeUndefined();
+        expect(maintenance.modelMeta.endJob).toBeUndefined();
+        expect(maintenance.modelMeta.durationTimeout).toBeUndefined();
     });
 
     test("uses the supplied runtime server for SAME_AS_SERVER monitor maintenance", async () => {
@@ -149,7 +149,7 @@ describe("maintenance validation and timer lifecycle", () => {
             await runtimeStore.exec(
                 "INSERT INTO monitor (id, name, active, interval, type, parent) VALUES (2, 'Child', 1, 60, 'http', 1)"
             );
-            const maintenance = Object.assign(runtimeStore.dispense("maintenance"), {
+            const maintenance = Object.assign(runtimeStore.createModel("maintenance"), {
                 title: "Server timezone window",
                 description: "",
                 active: true,
@@ -158,7 +158,7 @@ describe("maintenance validation and timer lifecycle", () => {
                 end_date: runtimeStore.isoDateTime(dayjs.utc().add(1, "hour")),
                 timezone: "SAME_AS_SERVER",
             });
-            await runtimeStore.store(maintenance);
+            await runtimeStore.saveModel(maintenance);
             await runtimeStore.exec("INSERT INTO monitor_maintenance (monitor_id, maintenance_id) VALUES (1, ?)", [
                 maintenance.id,
             ]);
@@ -195,14 +195,14 @@ describe("maintenance validation and timer lifecycle", () => {
             cron: "* * * * *",
             duration: 60,
             timezone: "UTC",
-            beanMeta: { job: { stop() {} }, durationTimeout: 99, status: "under-maintenance" },
+            modelMeta: { job: { stop() {} }, durationTimeout: 99, status: "under-maintenance" },
         });
 
         await maintenance.run(runtimeStore, runtimeServer, true, false, responseCache);
 
-        expect(maintenance.beanMeta.job).toBeUndefined();
-        expect(maintenance.beanMeta.durationTimeout).toBeUndefined();
-        expect(maintenance.beanMeta.status).toBeUndefined();
+        expect(maintenance.modelMeta.job).toBeUndefined();
+        expect(maintenance.modelMeta.durationTimeout).toBeUndefined();
+        expect(maintenance.modelMeta.status).toBeUndefined();
         expect(clearedTimers).toEqual([99]);
     });
 
@@ -238,12 +238,12 @@ describe("maintenance validation and timer lifecycle", () => {
         ];
 
         for (const [strategy, overrides, expectedCron, expectedDuration] of cases) {
-            const bean = await Maintenance.jsonToBean(new Maintenance(), schedule(strategy, overrides));
-            expect(bean.cron).toBe(expectedCron);
-            expect(bean.duration).toBe(expectedDuration);
+            const model = await Maintenance.jsonToModel(new Maintenance(), schedule(strategy, overrides));
+            expect(model.cron).toBe(expectedCron);
+            expect(model.duration).toBe(expectedDuration);
         }
 
-        const crossMidnight = await Maintenance.jsonToBean(
+        const crossMidnight = await Maintenance.jsonToModel(
             new Maintenance(),
             schedule("recurring-weekday", {
                 weekdays: [1],
@@ -363,13 +363,13 @@ describe("maintenance validation and timer lifecycle", () => {
         });
 
         await active.run(runtimeStore, runtimeServer, true, false, responseCache);
-        expect(active.beanMeta.job).toBeUndefined();
-        expect(active.beanMeta.endJob).toBeDefined();
-        const staleEnd = active.beanMeta.endJob.fn;
+        expect(active.modelMeta.job).toBeUndefined();
+        expect(active.modelMeta.endJob).toBeDefined();
+        const staleEnd = active.modelMeta.endJob.fn;
         active.stop();
         await expect(staleEnd()).resolves.toBeUndefined();
-        expect(active.beanMeta.job).toBeUndefined();
-        expect(active.beanMeta.endJob).toBeUndefined();
+        expect(active.modelMeta.job).toBeUndefined();
+        expect(active.modelMeta.endJob).toBeUndefined();
 
         const future = Object.assign(new Maintenance(), {
             id: 2,
@@ -381,8 +381,8 @@ describe("maintenance validation and timer lifecycle", () => {
             end_date: date(120_000),
         });
         await future.run(runtimeStore, runtimeServer, true, false, responseCache);
-        expect(future.beanMeta.job).toBeDefined();
-        expect(future.beanMeta.endJob).toBeDefined();
+        expect(future.modelMeta.job).toBeDefined();
+        expect(future.modelMeta.endJob).toBeDefined();
         future.stop();
 
         const ended = Object.assign(new Maintenance(), {
@@ -395,12 +395,12 @@ describe("maintenance validation and timer lifecycle", () => {
             end_date: date(-60_000),
         });
         await ended.run(runtimeStore, runtimeServer, true, false, responseCache);
-        expect(ended.beanMeta.job).toBeUndefined();
-        expect(ended.beanMeta.endJob).toBeUndefined();
+        expect(ended.modelMeta.job).toBeUndefined();
+        expect(ended.modelMeta.endJob).toBeUndefined();
     });
 
     test("keeps exactly one job across twenty reloads and blocks callbacks after stop", async () => {
-        const maintenance = Object.assign(runtimeStore.dispense("maintenance"), {
+        const maintenance = Object.assign(runtimeStore.createModel("maintenance"), {
             id: 1,
             user_id: 1,
             active: 1,
@@ -414,9 +414,9 @@ describe("maintenance validation and timer lifecycle", () => {
 
         for (let index = 0; index < 20; index++) {
             await maintenance.run(runtimeStore, runtimeServer, true, false, responseCache);
-            expect(maintenance.beanMeta.job).toBeDefined();
+            expect(maintenance.modelMeta.job).toBeDefined();
             expect(previousJobs.every((job) => job.isStopped())).toBe(true);
-            previousJobs.push(maintenance.beanMeta.job);
+            previousJobs.push(maintenance.modelMeta.job);
         }
 
         let releaseTimezone;
@@ -429,17 +429,17 @@ describe("maintenance validation and timer lifecycle", () => {
             return new Promise((resolve) => (releaseTimezone = resolve));
         };
         await maintenance.run(runtimeStore, runtimeServer, true, false, responseCache);
-        const pendingCallback = maintenance.beanMeta.job.fn();
+        const pendingCallback = maintenance.modelMeta.job.fn();
         maintenance.stop();
-        runtimeStore.store = async () => {
+        runtimeStore.saveModel = async () => {
             throw new Error("stopped callbacks must not persist");
         };
         releaseTimezone("UTC");
         await expect(pendingCallback).resolves.toBeUndefined();
-        expect(maintenance.beanMeta.job).toBeUndefined();
-        expect(maintenance.beanMeta.endJob).toBeUndefined();
-        expect(maintenance.beanMeta.durationTimeout).toBeUndefined();
-        expect(maintenance.beanMeta.status).toBeUndefined();
+        expect(maintenance.modelMeta.job).toBeUndefined();
+        expect(maintenance.modelMeta.endJob).toBeUndefined();
+        expect(maintenance.modelMeta.durationTimeout).toBeUndefined();
+        expect(maintenance.modelMeta.status).toBeUndefined();
         expect(maintenance.last_start_date).toBeUndefined();
     });
 
@@ -457,25 +457,25 @@ describe("maintenance validation and timer lifecycle", () => {
 
         let releaseDuration;
         maintenance.inferDuration = () => new Promise((resolve) => (releaseDuration = resolve));
-        const pendingCallback = maintenance.beanMeta.job.fn();
+        const pendingCallback = maintenance.modelMeta.job.fn();
         await Bun.sleep(0);
         maintenance.stop();
-        runtimeStore.store = async () => {
+        runtimeStore.saveModel = async () => {
             throw new Error("stopped callbacks must not persist");
         };
         releaseDuration(1_000);
 
         await expect(pendingCallback).resolves.toBeUndefined();
-        expect(maintenance.beanMeta.job).toBeUndefined();
-        expect(maintenance.beanMeta.durationTimeout).toBeUndefined();
-        expect(maintenance.beanMeta.status).toBeUndefined();
+        expect(maintenance.modelMeta.job).toBeUndefined();
+        expect(maintenance.modelMeta.durationTimeout).toBeUndefined();
+        expect(maintenance.modelMeta.status).toBeUndefined();
         expect(maintenance.last_start_date).toBeUndefined();
     });
 
     test("rehydrates an active window without persistence or publication and keeps one timer set", async () => {
         let stores = 0;
         let publications = 0;
-        runtimeStore.store = async () => stores++;
+        runtimeStore.saveModel = async () => stores++;
         runtimeServer.sendMaintenanceListByUserID = async () => publications++;
         const maintenance = Object.assign(new Maintenance(), {
             id: 1,
@@ -491,16 +491,16 @@ describe("maintenance validation and timer lifecycle", () => {
 
         for (let index = 0; index < 20; index++) {
             await maintenance.run(runtimeStore, runtimeServer, true, true, responseCache);
-            expect(maintenance.beanMeta.job).toBeDefined();
-            expect(maintenance.beanMeta.durationTimeout).toBeDefined();
+            expect(maintenance.modelMeta.job).toBeDefined();
+            expect(maintenance.modelMeta.durationTimeout).toBeDefined();
             expect(previousJobs.every((job) => job.isStopped())).toBe(true);
-            previousJobs.push(maintenance.beanMeta.job);
+            previousJobs.push(maintenance.modelMeta.job);
         }
 
         expect(stores).toBe(0);
         expect(publications).toBe(0);
         expect(maintenance.last_start_date).toBe("2026-01-01 00:00:00");
-        await maintenance.beanMeta.job.fn();
+        await maintenance.modelMeta.job.fn();
         expect(stores).toBe(1);
         expect(maintenance.last_start_date).not.toBe("2026-01-01 00:00:00");
         maintenance.stop();
@@ -525,7 +525,7 @@ describe("maintenance validation and timer lifecycle", () => {
                 "hash",
                 1,
             ]);
-            const bean = Object.assign(runtimeStore.dispense("maintenance"), {
+            const model = Object.assign(runtimeStore.createModel("maintenance"), {
                 title: "Before edit",
                 description: "",
                 user_id: 1,
@@ -536,8 +536,8 @@ describe("maintenance validation and timer lifecycle", () => {
                 weekdays: "[]",
                 days_of_month: "[]",
             });
-            const maintenanceID = await runtimeStore.store(bean);
-            server.maintenanceList = { [maintenanceID]: bean };
+            const maintenanceID = await runtimeStore.saveModel(model);
+            server.maintenanceList = { [maintenanceID]: model };
             server.sendMaintenanceList = async () => server.maintenanceList;
 
             await runtimeStore.exec(
@@ -623,8 +623,8 @@ describe("maintenance validation and timer lifecycle", () => {
             expect(editCallbacks).toHaveLength(1);
             expect(editCallbacks[0]).toMatchObject({ ok: false });
             expect(pauseCallbacks).toEqual([{ ok: true, msg: "successPaused", msgi18n: true }]);
-            expect(server.maintenanceList[maintenanceID]).toBe(bean);
-            expect(bean.active).toBe(false);
+            expect(server.maintenanceList[maintenanceID]).toBe(model);
+            expect(model.active).toBe(false);
             expect(
                 await runtimeStore.getRow("SELECT title, active FROM maintenance WHERE id = ?", [maintenanceID])
             ).toEqual({
@@ -647,7 +647,7 @@ describe("maintenance validation and timer lifecycle", () => {
 
     test("rolls back when addMaintenance fails on its first transaction operation", async () => {
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-add-first-error-"));
-        const store = new BunSQLiteRedbean();
+        const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         const originalBeginForTest = runtimeStore.begin;
         await store.connect({
             sqlitePath: path.join(directory, "kuma.db"),
@@ -656,7 +656,7 @@ describe("maintenance validation and timer lifecycle", () => {
         });
         runtimeStore.begin = async () => {
             const transaction = await store.begin();
-            transaction.store = async () => {
+            transaction.saveModel = async () => {
                 throw new Error("forced first add operation failure");
             };
             return transaction;
@@ -691,7 +691,7 @@ describe("maintenance validation and timer lifecycle", () => {
 
     test("rolls back when relation replacement fails on its first transaction operation", async () => {
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-relation-first-error-"));
-        const store = new BunSQLiteRedbean();
+        const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         const server = runtimeServer;
         const previousMaintenanceList = server.maintenanceList;
         const originalBeginForTest = runtimeStore.begin;
@@ -749,7 +749,7 @@ describe("maintenance validation and timer lifecycle", () => {
 
     test("rolls back when edit setup fails immediately after begin", async () => {
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-first-error-"));
-        const store = new BunSQLiteRedbean();
+        const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         const server = runtimeServer;
         const previousMaintenanceList = server.maintenanceList;
         const originalBeginForTest = runtimeStore.begin;
@@ -758,7 +758,7 @@ describe("maintenance validation and timer lifecycle", () => {
             templatePath: path.join(process.cwd(), "src/db/kuma.db"),
             testMode: true,
         });
-        const bean = Object.assign(new Maintenance(), {
+        const model = Object.assign(new Maintenance(), {
             id: 1,
             user_id: 1,
             title: "Before edit",
@@ -770,10 +770,10 @@ describe("maintenance validation and timer lifecycle", () => {
             weekdays: "[]",
             days_of_month: "[]",
         });
-        bean.stop = () => {
+        model.stop = () => {
             throw new Error("forced edit setup failure");
         };
-        server.maintenanceList = { 1: bean };
+        server.maintenanceList = { 1: model };
         let transaction;
         runtimeStore.begin = async () => (transaction = await store.begin());
 
@@ -833,8 +833,8 @@ describe("maintenance validation and timer lifecycle", () => {
 
     test("uses the supplied store and keeps maintenance ownership isolated", async () => {
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-stores-"));
-        const first = new BunSQLiteRedbean();
-        const second = new BunSQLiteRedbean();
+        const first = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
+        const second = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
         const socket = (userID, handlers) => ({
             userID,
             on(event, handler) {

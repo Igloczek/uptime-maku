@@ -12,7 +12,7 @@ import {
 let Monitor;
 
 beforeAll(async () => {
-    await import("@/server/sqlite-core");
+    await import("@/server/sqlite-store");
     Monitor = (await import("@/server/model/monitor")).default;
 });
 
@@ -21,8 +21,8 @@ const MAX_MONITOR_RETRIES = 100;
 const MAX_MONITOR_REDIRECTS = 100;
 
 function monitor(overrides = {}) {
-    const bean = new Monitor();
-    Object.assign(bean, {
+    const model = new Monitor();
+    Object.assign(model, {
         type: "http",
         interval: 60,
         retryInterval: 20,
@@ -34,19 +34,19 @@ function monitor(overrides = {}) {
         port: null,
         ...overrides,
     });
-    return bean;
+    return model;
 }
 
 function expectInvalid(field, values, message) {
     for (const value of values) {
-        const bean = monitor({ [field]: value });
-        expect(() => bean.validate(), `${field}=${String(value)}`).toThrow(message);
+        const model = monitor({ [field]: value });
+        expect(() => model.validate(), `${field}=${String(value)}`).toThrow(message);
     }
 }
 
 describe("monitor numeric validation", () => {
     test("validate() normalizes numeric WebSocket strings before persistence", () => {
-        const bean = monitor({
+        const model = monitor({
             interval: "60",
             retryInterval: "20",
             resendInterval: "3",
@@ -57,17 +57,17 @@ describe("monitor numeric validation", () => {
             port: "5432",
         });
 
-        bean.validate();
+        model.validate();
 
         expect({
-            interval: bean.interval,
-            retryInterval: bean.retryInterval,
-            resendInterval: bean.resendInterval,
-            maxretries: bean.maxretries,
-            timeout: bean.timeout,
-            maxredirects: bean.maxredirects,
-            response_max_length: bean.response_max_length,
-            port: bean.port,
+            interval: model.interval,
+            retryInterval: model.retryInterval,
+            resendInterval: model.resendInterval,
+            maxretries: model.maxretries,
+            timeout: model.timeout,
+            maxredirects: model.maxredirects,
+            response_max_length: model.response_max_length,
+            port: model.port,
         }).toEqual({
             interval: 60,
             retryInterval: 20,
@@ -82,9 +82,9 @@ describe("monitor numeric validation", () => {
 
     test("validate() preserves zero and UI-representable provider timeout values", () => {
         for (const value of [0, "0", "0.0", 0.1, "0.25", MAX_INTERVAL_SECOND]) {
-            const bean = monitor({ timeout: value });
-            bean.validate();
-            expect(bean.timeout).toBe(Number(value));
+            const model = monitor({ timeout: value });
+            model.validate();
+            expect(model.timeout).toBe(Number(value));
         }
     });
 
@@ -96,9 +96,9 @@ describe("monitor numeric validation", () => {
         }
         expect(monitor({ type: "oracledb", interval: 1, timeout: 0.1 }).getEffectiveTimeout()).toBe(1);
         for (const value of [0, 1, "1", MAX_INTERVAL_SECOND]) {
-            const bean = monitor({ type: "oracledb", timeout: value });
-            bean.validate();
-            expect(bean.timeout).toBe(Number(value));
+            const model = monitor({ type: "oracledb", timeout: value });
+            model.validate();
+            expect(model.timeout).toBe(Number(value));
         }
     });
 
@@ -199,27 +199,27 @@ describe("monitor numeric validation", () => {
 
     test("validate() accepts retry and redirect boundary values", () => {
         for (const value of [0, "0", MAX_MONITOR_RETRIES, String(MAX_MONITOR_RETRIES)]) {
-            const bean = monitor({ maxretries: value });
-            bean.validate();
-            expect(bean.maxretries).toBe(Number(value));
+            const model = monitor({ maxretries: value });
+            model.validate();
+            expect(model.maxretries).toBe(Number(value));
         }
         for (const value of [0, "0", MAX_MONITOR_REDIRECTS, String(MAX_MONITOR_REDIRECTS)]) {
-            const bean = monitor({ maxredirects: value });
-            bean.validate();
-            expect(bean.maxredirects).toBe(Number(value));
+            const model = monitor({ maxredirects: value });
+            model.validate();
+            expect(model.maxredirects).toBe(Number(value));
         }
     });
 
     test("validate() normalizes optional ports and rejects invalid endpoints", () => {
         for (const value of ["", "   ", null, undefined]) {
-            const bean = monitor({ port: value });
-            bean.validate();
-            expect(bean.port).toBeNull();
+            const model = monitor({ port: value });
+            model.validate();
+            expect(model.port).toBeNull();
         }
         for (const value of ["0", 0, "65535", 65535]) {
-            const bean = monitor({ port: value });
-            bean.validate();
-            expect(bean.port).toBe(Number(value));
+            const model = monitor({ port: value });
+            model.validate();
+            expect(model.port).toBe(Number(value));
         }
         expectInvalid(
             "port",
@@ -229,18 +229,18 @@ describe("monitor numeric validation", () => {
     });
 
     test("validate() normalizes and bounds ping scheduling fields", () => {
-        const bean = monitor({
+        const model = monitor({
             type: "ping",
             timeout: "10.4",
             packetSize: "56",
             ping_count: "3",
             ping_per_request_timeout: "2",
         });
-        bean.validate();
-        expect(bean.timeout).toBe(10);
-        expect(bean.packetSize).toBe(56);
-        expect(bean.ping_count).toBe(3);
-        expect(bean.ping_per_request_timeout).toBe(2);
+        model.validate();
+        expect(model.timeout).toBe(10);
+        expect(model.packetSize).toBe(56);
+        expect(model.ping_count).toBe(3);
+        expect(model.ping_per_request_timeout).toBe(2);
 
         const fields = [
             [
@@ -275,9 +275,9 @@ describe("monitor numeric validation", () => {
     });
 
     test("validate() persists real-browser delay as a finite integer", () => {
-        const bean = monitor({ type: "real-browser", screenshot_delay: "250" });
-        bean.validate();
-        expect(bean.screenshot_delay).toBe(250);
+        const model = monitor({ type: "real-browser", screenshot_delay: "250" });
+        model.validate();
+        expect(model.screenshot_delay).toBe(250);
 
         for (const value of ["", "bogus", NaN, Infinity, -Infinity, -1, 0.5, null, undefined]) {
             const invalid = monitor({ type: "real-browser", screenshot_delay: value });
@@ -288,7 +288,7 @@ describe("monitor numeric validation", () => {
     });
 
     test("normalizeRuntimeConfig() gives malformed legacy rows finite safe defaults without a database write", () => {
-        const bean = monitor({
+        const model = monitor({
             type: "ping",
             interval: "bogus",
             retryInterval: 0,
@@ -303,20 +303,20 @@ describe("monitor numeric validation", () => {
             ping_per_request_timeout: 0,
         });
 
-        bean.normalizeRuntimeConfig();
+        model.normalizeRuntimeConfig();
 
         expect({
-            interval: bean.interval,
-            retryInterval: bean.retryInterval,
-            resendInterval: bean.resendInterval,
-            maxretries: bean.maxretries,
-            timeout: bean.timeout,
-            maxredirects: bean.maxredirects,
-            response_max_length: bean.response_max_length,
-            port: bean.port,
-            packetSize: bean.packetSize,
-            ping_count: bean.ping_count,
-            ping_per_request_timeout: bean.ping_per_request_timeout,
+            interval: model.interval,
+            retryInterval: model.retryInterval,
+            resendInterval: model.resendInterval,
+            maxretries: model.maxretries,
+            timeout: model.timeout,
+            maxredirects: model.maxredirects,
+            response_max_length: model.response_max_length,
+            port: model.port,
+            packetSize: model.packetSize,
+            ping_count: model.ping_count,
+            ping_per_request_timeout: model.ping_per_request_timeout,
         }).toEqual({
             interval: 1,
             retryInterval: 1,

@@ -61,7 +61,7 @@ bun run test:backend:all      # full suite (includes integration / Docker tests)
 
 The unit subset runs fast, hermetic tests (no Docker or public network):
 
-- `sqlite-core.test.ts` — SQLite store bootstrap and queries
+- `sqlite-store.test.ts` — SQLite store bootstrap and queries
 - `cert-hostname-match.test.ts` — certificate hostname matching
 - `http-client.test.ts` — fetch wrapper behavior
 - `globalping.test.ts` — mocked Globalping monitor behavior
@@ -93,7 +93,7 @@ The full suite discovers all `*.test.ts` files. Some failures are environmental,
 | Category       | Examples                                                                         | Cause                             |
 | -------------- | -------------------------------------------------------------------------------- | --------------------------------- |
 | Testcontainers | `monitors/{mqtt,mssql,mysql,oracledb,postgres,rabbitmq}.test.ts`, `snmp.test.ts` | Requires Docker and live services |
-| Public network | `domain.test.ts`, opt-in TCP via `UPTIME_MAKU_PUBLIC_NETWORK_TESTS=1`             | Needs live RDAP/DNS/TLS           |
+| Public network | `domain.test.ts`, opt-in TCP via `UPTIME_MAKU_PUBLIC_NETWORK_TESTS=1`            | Needs live RDAP/DNS/TLS           |
 | Host/process   | `ping.test.ts`, `monitors/kafka-producer.test.ts`                                | Needs host tools or a local mock  |
 
 The Testcontainers suites require a working local Docker daemon. The multi-case MySQL, Microsoft SQL Server, Oracle,

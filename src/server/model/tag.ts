@@ -1,8 +1,8 @@
 // @ts-nocheck
 
-import { BeanModel } from "@/server/bean-model";
+import { SQLiteModel } from "@/server/sqlite-model";
 
-class Tag extends BeanModel {
+class Tag extends SQLiteModel {
     /**
      * Return an object that ready to parse to JSON
      * @returns {object} Object ready to parse

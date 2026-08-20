@@ -4,7 +4,7 @@
  * Login to web app
  * @param {string} username Username to login with
  * @param {string} password Password to login with
- * @returns {Promise<(Bean|null)>} User or null if login failed
+ * @returns {Promise<(Model|null)>} User or null if login failed
  */
 import passwordHash from "@/server/password-hash";
 import { log } from "@/server/logger";
@@ -54,7 +54,7 @@ export async function login(store, username, password) {
 /**
  * Validate a provided API key
  * @param {string} key API key to verify
- * @returns {Promise<Bean|null>} Matching API key or null
+ * @returns {Promise<Model|null>} Matching API key or null
  */
 async function verifyAPIKey(store, key) {
     const parsed = parseAPIKey(key);

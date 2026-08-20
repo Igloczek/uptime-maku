@@ -4,7 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import TwoFA from "@/server/2fa";
 import { login } from "@/server/auth";
-import { BunSQLiteRedbean } from "@/server/sqlite-core";
+import { SQLiteStore } from "@/server/sqlite-store";
+import { SQLITE_MODEL_MAPPING } from "@/server/sqlite-model-mapping";
 import User from "@/server/model/user";
 import passwordHash from "@/server/password-hash";
 import jwt from "@/server/jwt";
@@ -17,7 +18,7 @@ const directories = [];
 async function createStore() {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-auth-settings-"));
     directories.push(directory);
-    const store = new BunSQLiteRedbean();
+    const store = new SQLiteStore({ modelMapping: SQLITE_MODEL_MAPPING });
     await store.connect({
         sqlitePath: path.join(directory, "kuma.db"),
         templatePath: path.join(process.cwd(), "src/db/kuma.db"),

@@ -19,19 +19,19 @@ describe("Monitor response saving", () => {
         const monitor = Object.create(Monitor.prototype);
         monitor.response_max_length = 5;
 
-        const bean = {};
-        await monitor.saveResponseData(bean, "abcdef");
+        const model = {};
+        await monitor.saveResponseData(model, "abcdef");
 
-        expect(await Heartbeat.decodeResponseValue(bean.response)).toBe("abcde... (truncated)");
+        expect(await Heartbeat.decodeResponseValue(model.response)).toBe("abcde... (truncated)");
     });
 
     test("saveResponseData stringifies objects", async () => {
         const monitor = Object.create(Monitor.prototype);
         monitor.response_max_length = RESPONSE_BODY_LENGTH_DEFAULT;
 
-        const bean = {};
-        await monitor.saveResponseData(bean, { ok: true });
+        const model = {};
+        await monitor.saveResponseData(model, { ok: true });
 
-        expect(await Heartbeat.decodeResponseValue(bean.response)).toBe(JSON.stringify({ ok: true }));
+        expect(await Heartbeat.decodeResponseValue(model.response)).toBe(JSON.stringify({ ok: true }));
     });
 });

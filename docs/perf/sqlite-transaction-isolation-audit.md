@@ -41,7 +41,7 @@ error. `close()` remains idempotent and cannot deadlock behind a poisoned transa
 The native handle is now a JavaScript private field. Production code uses `isOpen()` for lifecycle checks, and schema
 migrations receive a short-lived capability exposing only schema operations. The capability is invalidated after the
 schema phase and cannot query rows, run arbitrary DML, close the store, or return the native database. The first
-status-page delete and `bean.stop()` in maintenance edit now execute inside their transaction guards. All five
+status-page delete and `model.stop()` in maintenance edit now execute inside their transaction guards. All five
 production `begin()` callsites were audited, and forced-first-operation tests cover migration data, maintenance add
 and edit, relation replacement, and status-page save.
 
