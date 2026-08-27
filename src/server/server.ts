@@ -1804,12 +1804,14 @@ async function startMonitor(userID, monitorID) {
 
     await store.exec("UPDATE monitor SET active = 1 WHERE id = ? AND user_id = ? ", [monitorID, userID]);
 
-    let monitor = await store.findOne("monitor", " id = ? ", [monitorID]);
-
-    if (monitor.id in server.monitorList) {
-        await server.monitorList[monitor.id].stop();
+    const runningMonitor = server.monitorList[monitorID];
+    if (runningMonitor) {
+        await runningMonitor.stop();
     }
 
+    // Reload only after the old scheduler has stopped, so an in-flight notification cannot
+    // update the database between this read and installing the new runtime object.
+    const monitor = await store.findOne("monitor", " id = ? ", [monitorID]);
     server.monitorList[monitor.id] = monitor;
     await monitor.start(io, heartbeatData, server, runHeartbeatWrite, responseCache);
 }
