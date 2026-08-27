@@ -1791,6 +1791,19 @@ async function initDatabase(testMode = false) {
     server.jwtSecret = jwtSecretBean.value;
 }
 
+function runMonitorLifecycleOperation(monitorID, operation) {
+    const previous = server.monitorLifecycleOperations.get(monitorID);
+    const pending = previous ? previous.then(operation) : Promise.resolve().then(operation);
+    const settled = pending.catch(() => {});
+    server.monitorLifecycleOperations.set(monitorID, settled);
+
+    return pending.finally(() => {
+        if (server.monitorLifecycleOperations.get(monitorID) === settled) {
+            server.monitorLifecycleOperations.delete(monitorID);
+        }
+    });
+}
+
 /**
  * Start the specified monitor
  * @param {number} userID ID of user who owns monitor
@@ -1800,20 +1813,22 @@ async function initDatabase(testMode = false) {
 async function startMonitor(userID, monitorID) {
     await checkOwner(userID, monitorID);
 
-    log.info("manage", `Resume Monitor: ${monitorID} User ID: ${userID}`);
+    return runMonitorLifecycleOperation(monitorID, async () => {
+        log.info("manage", `Resume Monitor: ${monitorID} User ID: ${userID}`);
 
-    await store.exec("UPDATE monitor SET active = 1 WHERE id = ? AND user_id = ? ", [monitorID, userID]);
+        await store.exec("UPDATE monitor SET active = 1 WHERE id = ? AND user_id = ? ", [monitorID, userID]);
 
-    const runningMonitor = server.monitorList[monitorID];
-    if (runningMonitor) {
-        await runningMonitor.stop();
-    }
+        const runningMonitor = server.monitorList[monitorID];
+        if (runningMonitor) {
+            await runningMonitor.stop();
+        }
 
-    // Reload only after the old scheduler has stopped, so an in-flight notification cannot
-    // update the database between this read and installing the new runtime object.
-    const monitor = await store.findOne("monitor", " id = ? ", [monitorID]);
-    server.monitorList[monitor.id] = monitor;
-    await monitor.start(io, heartbeatData, server, runHeartbeatWrite, responseCache);
+        // Reload only after the old scheduler has stopped, so an in-flight notification cannot
+        // update the database between this read and installing the new runtime object.
+        const monitor = await store.findOne("monitor", " id = ? ", [monitorID]);
+        server.monitorList[monitor.id] = monitor;
+        await monitor.start(io, heartbeatData, server, runHeartbeatWrite, responseCache);
+    });
 }
 
 /**
@@ -1835,14 +1850,16 @@ async function restartMonitor(userID, monitorID) {
 async function pauseMonitor(userID, monitorID) {
     await checkOwner(userID, monitorID);
 
-    log.info("manage", `Pause Monitor: ${monitorID} User ID: ${userID}`);
+    return runMonitorLifecycleOperation(monitorID, async () => {
+        log.info("manage", `Pause Monitor: ${monitorID} User ID: ${userID}`);
 
-    await store.exec("UPDATE monitor SET active = 0 WHERE id = ? AND user_id = ? ", [monitorID, userID]);
+        await store.exec("UPDATE monitor SET active = 0 WHERE id = ? AND user_id = ? ", [monitorID, userID]);
 
-    if (monitorID in server.monitorList) {
-        await server.monitorList[monitorID].stop();
-        server.monitorList[monitorID].active = 0;
-    }
+        if (monitorID in server.monitorList) {
+            await server.monitorList[monitorID].stop();
+            server.monitorList[monitorID].active = 0;
+        }
+    });
 }
 
 /**
