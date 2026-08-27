@@ -736,184 +736,190 @@ let needSetup = false;
         // Edit a monitor
         socket.on("editMonitor", async (monitor, callback) => {
             try {
-                let removeGroupChildren = false;
                 checkLogin(socket);
-
-                let bean = await store.findOne("monitor", " id = ? ", [monitor.id]);
-
-                if (bean.user_id !== socket.userID) {
-                    throw new Error("Permission denied.");
+                const monitorID = Number(monitor?.id);
+                if (!Number.isSafeInteger(monitorID) || monitorID <= 0) {
+                    throw new Error("Invalid monitor ID.");
                 }
-                await resolveCoreHttpProxy(store, monitor.type, monitor.proxyId, socket.userID, monitor.ignoreTls);
 
-                // Check if Parent is Descendant (would cause endless loop)
-                if (monitor.parent !== null) {
-                    const childIDs = await Monitor.getAllChildrenIDs(monitor.id, store);
-                    if (childIDs.includes(monitor.parent)) {
-                        throw new Error("Invalid Monitor Group");
+                await runMonitorLifecycleOperation(monitorID, async () => {
+                    let removeGroupChildren = false;
+                    let bean = await store.findOne("monitor", " id = ? ", [monitorID]);
+
+                    if (bean.user_id !== socket.userID) {
+                        throw new Error("Permission denied.");
                     }
-                }
+                    await resolveCoreHttpProxy(store, monitor.type, monitor.proxyId, socket.userID, monitor.ignoreTls);
 
-                // Remove children if monitor type has changed (from group to non-group)
-                if (bean.type === "group" && monitor.type !== bean.type) {
-                    removeGroupChildren = true;
-                }
-
-                // Ensure status code ranges are strings
-                if (!monitor.accepted_statuscodes.every((code) => typeof code === "string")) {
-                    throw new Error("Accepted status codes are not all strings");
-                }
-
-                bean.name = monitor.name;
-                bean.description = monitor.description;
-                bean.parent = monitor.parent;
-                bean.type = monitor.type;
-                bean.subtype = monitor.subtype;
-                bean.url = monitor.url;
-                bean.wsIgnoreSecWebsocketAcceptHeader = monitor.wsIgnoreSecWebsocketAcceptHeader;
-                bean.wsSubprotocol = monitor.wsSubprotocol;
-                bean.method = monitor.method;
-                bean.body = monitor.body;
-                bean.ipFamily = monitor.ipFamily;
-                bean.headers = monitor.headers;
-                bean.basic_auth_user = monitor.basic_auth_user;
-                bean.basic_auth_pass = monitor.basic_auth_pass;
-                bean.bearer_token = monitor.bearer_token;
-                bean.timeout = monitor.timeout;
-                bean.oauth_client_id = monitor.oauth_client_id;
-                bean.oauth_client_secret = monitor.oauth_client_secret;
-                bean.oauth_auth_method = monitor.oauth_auth_method;
-                bean.oauth_token_url = monitor.oauth_token_url;
-                bean.oauth_scopes = monitor.oauth_scopes;
-                bean.oauth_audience = monitor.oauth_audience;
-                bean.tlsCa = monitor.tlsCa;
-                bean.tlsCert = monitor.tlsCert;
-                bean.tlsKey = monitor.tlsKey;
-                bean.interval = monitor.interval;
-                bean.retryInterval = monitor.retryInterval;
-                bean.resendInterval = monitor.resendInterval;
-                bean.hostname = monitor.hostname;
-                bean.game = monitor.game;
-                bean.maxretries = monitor.maxretries;
-                bean.port = monitor.port;
-                bean.location = monitor.location;
-                bean.protocol = monitor.protocol;
-
-                bean.keyword = monitor.keyword;
-                bean.invertKeyword = monitor.invertKeyword;
-                bean.ignoreTls = monitor.ignoreTls;
-                bean.expiryNotification = monitor.expiryNotification;
-                bean.domainExpiryNotification = monitor.domainExpiryNotification;
-                bean.upsideDown = monitor.upsideDown;
-                bean.packetSize = monitor.packetSize;
-                bean.maxredirects = monitor.maxredirects;
-                bean.accepted_statuscodes_json = JSON.stringify(monitor.accepted_statuscodes);
-                bean.save_response = monitor.saveResponse;
-                bean.save_error_response = monitor.saveErrorResponse;
-                bean.response_max_length = monitor.responseMaxLength;
-                bean.dns_resolve_type = monitor.dns_resolve_type;
-                bean.dns_resolve_server = monitor.dns_resolve_server;
-                bean.pushToken = monitor.pushToken;
-                bean.docker_container = monitor.docker_container;
-                bean.docker_host = monitor.docker_host;
-                bean.proxyId = Number.isInteger(monitor.proxyId) ? monitor.proxyId : null;
-                bean.mqttUsername = monitor.mqttUsername;
-                bean.mqttPassword = monitor.mqttPassword;
-                bean.mqttTopic = monitor.mqttTopic;
-                bean.mqttSuccessMessage = monitor.mqttSuccessMessage;
-                bean.mqttCheckType = monitor.mqttCheckType;
-                bean.mqttWebsocketPath = monitor.mqttWebsocketPath;
-                bean.databaseConnectionString = monitor.databaseConnectionString;
-                bean.databaseQuery = monitor.databaseQuery;
-                bean.authMethod = monitor.authMethod;
-                bean.authWorkstation = monitor.authWorkstation;
-                bean.authDomain = monitor.authDomain;
-                bean.grpcUrl = monitor.grpcUrl;
-                bean.grpcProtobuf = monitor.grpcProtobuf;
-                bean.grpcServiceName = monitor.grpcServiceName;
-                bean.grpcMethod = monitor.grpcMethod;
-                bean.grpcBody = monitor.grpcBody;
-                bean.grpcMetadata = monitor.grpcMetadata;
-                bean.grpcEnableTls = monitor.grpcEnableTls;
-                bean.radiusUsername = monitor.radiusUsername;
-                bean.radiusPassword = monitor.radiusPassword;
-                bean.radiusCalledStationId = monitor.radiusCalledStationId;
-                bean.radiusCallingStationId = monitor.radiusCallingStationId;
-                bean.radiusSecret = monitor.radiusSecret;
-                bean.httpBodyEncoding = monitor.httpBodyEncoding;
-                bean.expectedValue = monitor.expectedValue;
-                bean.jsonPath = monitor.jsonPath;
-                bean.kafkaProducerTopic = monitor.kafkaProducerTopic;
-                bean.kafkaProducerBrokers = JSON.stringify(monitor.kafkaProducerBrokers);
-                bean.kafkaProducerAllowAutoTopicCreation = monitor.kafkaProducerAllowAutoTopicCreation;
-                bean.kafkaProducerSaslOptions = JSON.stringify(monitor.kafkaProducerSaslOptions);
-                bean.kafkaProducerMessage = monitor.kafkaProducerMessage;
-                bean.cacheBust = monitor.cacheBust;
-                bean.kafkaProducerSsl = monitor.kafkaProducerSsl;
-                bean.kafkaProducerAllowAutoTopicCreation = monitor.kafkaProducerAllowAutoTopicCreation;
-                bean.gamedigGivenPortOnly = monitor.gamedigGivenPortOnly;
-                bean.gamedigToken = monitor.gamedigToken;
-                bean.remote_browser = monitor.remote_browser;
-                bean.smtpSecurity = monitor.smtpSecurity;
-                bean.snmpVersion = monitor.snmpVersion;
-                bean.snmpOid = monitor.snmpOid;
-                bean.jsonPathOperator = monitor.jsonPathOperator;
-                bean.retry_only_on_status_code_failure = Boolean(monitor.retryOnlyOnStatusCodeFailure);
-                bean.rabbitmqNodes = JSON.stringify(monitor.rabbitmqNodes);
-                bean.rabbitmqUsername = monitor.rabbitmqUsername;
-                bean.rabbitmqPassword = monitor.rabbitmqPassword;
-                bean.conditions = JSON.stringify(monitor.conditions);
-                bean.manual_status = monitor.manual_status;
-                bean.system_service_name = monitor.system_service_name;
-                bean.expected_tls_alert = monitor.expectedTlsAlert;
-                bean.screenshot_delay = monitor.screenshot_delay;
-                bean.screenshotDelay = monitor.screenshot_delay;
-
-                // ping advanced options
-                bean.ping_numeric = monitor.ping_numeric;
-                bean.ping_count = monitor.ping_count;
-                bean.ping_per_request_timeout = monitor.ping_per_request_timeout;
-
-                bean.validate();
-
-                // Notification delivery updates the same monitor row asynchronously. Store the edit in a
-                // transaction after re-reading both timestamps so a stale edit cannot erase a recent attempt.
-                const transaction = await store.begin();
-                try {
-                    const notificationState = await transaction.getRow(
-                        "SELECT last_notification_at, last_notification_attempt_at FROM monitor WHERE id = ?",
-                        [bean.id]
-                    );
-                    if (notificationState) {
-                        bean.last_notification_at = notificationState.last_notification_at;
-                        bean.lastNotificationAt = notificationState.last_notification_at;
-                        bean.last_notification_attempt_at = notificationState.last_notification_attempt_at;
-                        bean.lastNotificationAttemptAt = notificationState.last_notification_attempt_at;
+                    // Check if Parent is Descendant (would cause endless loop)
+                    if (monitor.parent !== null) {
+                        const childIDs = await Monitor.getAllChildrenIDs(monitorID, store);
+                        if (childIDs.includes(monitor.parent)) {
+                            throw new Error("Invalid Monitor Group");
+                        }
                     }
-                    await transaction.store(bean);
-                    await transaction.commit();
-                } catch (error) {
-                    await transaction.rollback();
-                    throw error;
-                }
 
-                if (removeGroupChildren) {
-                    await Monitor.unlinkAllChildren(store, monitor.id);
-                }
+                    // Remove children if monitor type has changed (from group to non-group)
+                    if (bean.type === "group" && monitor.type !== bean.type) {
+                        removeGroupChildren = true;
+                    }
 
-                await updateMonitorNotification(bean.id, monitor.notificationIDList);
+                    // Ensure status code ranges are strings
+                    if (!monitor.accepted_statuscodes.every((code) => typeof code === "string")) {
+                        throw new Error("Accepted status codes are not all strings");
+                    }
 
-                if (await Monitor.isActive(bean.id, bean.active, store)) {
-                    await restartMonitor(socket.userID, bean.id);
-                }
+                    bean.name = monitor.name;
+                    bean.description = monitor.description;
+                    bean.parent = monitor.parent;
+                    bean.type = monitor.type;
+                    bean.subtype = monitor.subtype;
+                    bean.url = monitor.url;
+                    bean.wsIgnoreSecWebsocketAcceptHeader = monitor.wsIgnoreSecWebsocketAcceptHeader;
+                    bean.wsSubprotocol = monitor.wsSubprotocol;
+                    bean.method = monitor.method;
+                    bean.body = monitor.body;
+                    bean.ipFamily = monitor.ipFamily;
+                    bean.headers = monitor.headers;
+                    bean.basic_auth_user = monitor.basic_auth_user;
+                    bean.basic_auth_pass = monitor.basic_auth_pass;
+                    bean.bearer_token = monitor.bearer_token;
+                    bean.timeout = monitor.timeout;
+                    bean.oauth_client_id = monitor.oauth_client_id;
+                    bean.oauth_client_secret = monitor.oauth_client_secret;
+                    bean.oauth_auth_method = monitor.oauth_auth_method;
+                    bean.oauth_token_url = monitor.oauth_token_url;
+                    bean.oauth_scopes = monitor.oauth_scopes;
+                    bean.oauth_audience = monitor.oauth_audience;
+                    bean.tlsCa = monitor.tlsCa;
+                    bean.tlsCert = monitor.tlsCert;
+                    bean.tlsKey = monitor.tlsKey;
+                    bean.interval = monitor.interval;
+                    bean.retryInterval = monitor.retryInterval;
+                    bean.resendInterval = monitor.resendInterval;
+                    bean.hostname = monitor.hostname;
+                    bean.game = monitor.game;
+                    bean.maxretries = monitor.maxretries;
+                    bean.port = monitor.port;
+                    bean.location = monitor.location;
+                    bean.protocol = monitor.protocol;
 
-                await server.sendUpdateMonitorIntoList(socket, bean.id);
+                    bean.keyword = monitor.keyword;
+                    bean.invertKeyword = monitor.invertKeyword;
+                    bean.ignoreTls = monitor.ignoreTls;
+                    bean.expiryNotification = monitor.expiryNotification;
+                    bean.domainExpiryNotification = monitor.domainExpiryNotification;
+                    bean.upsideDown = monitor.upsideDown;
+                    bean.packetSize = monitor.packetSize;
+                    bean.maxredirects = monitor.maxredirects;
+                    bean.accepted_statuscodes_json = JSON.stringify(monitor.accepted_statuscodes);
+                    bean.save_response = monitor.saveResponse;
+                    bean.save_error_response = monitor.saveErrorResponse;
+                    bean.response_max_length = monitor.responseMaxLength;
+                    bean.dns_resolve_type = monitor.dns_resolve_type;
+                    bean.dns_resolve_server = monitor.dns_resolve_server;
+                    bean.pushToken = monitor.pushToken;
+                    bean.docker_container = monitor.docker_container;
+                    bean.docker_host = monitor.docker_host;
+                    bean.proxyId = Number.isInteger(monitor.proxyId) ? monitor.proxyId : null;
+                    bean.mqttUsername = monitor.mqttUsername;
+                    bean.mqttPassword = monitor.mqttPassword;
+                    bean.mqttTopic = monitor.mqttTopic;
+                    bean.mqttSuccessMessage = monitor.mqttSuccessMessage;
+                    bean.mqttCheckType = monitor.mqttCheckType;
+                    bean.mqttWebsocketPath = monitor.mqttWebsocketPath;
+                    bean.databaseConnectionString = monitor.databaseConnectionString;
+                    bean.databaseQuery = monitor.databaseQuery;
+                    bean.authMethod = monitor.authMethod;
+                    bean.authWorkstation = monitor.authWorkstation;
+                    bean.authDomain = monitor.authDomain;
+                    bean.grpcUrl = monitor.grpcUrl;
+                    bean.grpcProtobuf = monitor.grpcProtobuf;
+                    bean.grpcServiceName = monitor.grpcServiceName;
+                    bean.grpcMethod = monitor.grpcMethod;
+                    bean.grpcBody = monitor.grpcBody;
+                    bean.grpcMetadata = monitor.grpcMetadata;
+                    bean.grpcEnableTls = monitor.grpcEnableTls;
+                    bean.radiusUsername = monitor.radiusUsername;
+                    bean.radiusPassword = monitor.radiusPassword;
+                    bean.radiusCalledStationId = monitor.radiusCalledStationId;
+                    bean.radiusCallingStationId = monitor.radiusCallingStationId;
+                    bean.radiusSecret = monitor.radiusSecret;
+                    bean.httpBodyEncoding = monitor.httpBodyEncoding;
+                    bean.expectedValue = monitor.expectedValue;
+                    bean.jsonPath = monitor.jsonPath;
+                    bean.kafkaProducerTopic = monitor.kafkaProducerTopic;
+                    bean.kafkaProducerBrokers = JSON.stringify(monitor.kafkaProducerBrokers);
+                    bean.kafkaProducerAllowAutoTopicCreation = monitor.kafkaProducerAllowAutoTopicCreation;
+                    bean.kafkaProducerSaslOptions = JSON.stringify(monitor.kafkaProducerSaslOptions);
+                    bean.kafkaProducerMessage = monitor.kafkaProducerMessage;
+                    bean.cacheBust = monitor.cacheBust;
+                    bean.kafkaProducerSsl = monitor.kafkaProducerSsl;
+                    bean.kafkaProducerAllowAutoTopicCreation = monitor.kafkaProducerAllowAutoTopicCreation;
+                    bean.gamedigGivenPortOnly = monitor.gamedigGivenPortOnly;
+                    bean.gamedigToken = monitor.gamedigToken;
+                    bean.remote_browser = monitor.remote_browser;
+                    bean.smtpSecurity = monitor.smtpSecurity;
+                    bean.snmpVersion = monitor.snmpVersion;
+                    bean.snmpOid = monitor.snmpOid;
+                    bean.jsonPathOperator = monitor.jsonPathOperator;
+                    bean.retry_only_on_status_code_failure = Boolean(monitor.retryOnlyOnStatusCodeFailure);
+                    bean.rabbitmqNodes = JSON.stringify(monitor.rabbitmqNodes);
+                    bean.rabbitmqUsername = monitor.rabbitmqUsername;
+                    bean.rabbitmqPassword = monitor.rabbitmqPassword;
+                    bean.conditions = JSON.stringify(monitor.conditions);
+                    bean.manual_status = monitor.manual_status;
+                    bean.system_service_name = monitor.system_service_name;
+                    bean.expected_tls_alert = monitor.expectedTlsAlert;
+                    bean.screenshot_delay = monitor.screenshot_delay;
+                    bean.screenshotDelay = monitor.screenshot_delay;
 
-                callback({
-                    ok: true,
-                    msg: "Saved.",
-                    msgi18n: true,
-                    monitorID: bean.id,
+                    // ping advanced options
+                    bean.ping_numeric = monitor.ping_numeric;
+                    bean.ping_count = monitor.ping_count;
+                    bean.ping_per_request_timeout = monitor.ping_per_request_timeout;
+
+                    bean.validate();
+
+                    // Notification delivery updates the same monitor row asynchronously. Store the edit in a
+                    // transaction after re-reading both timestamps so a stale edit cannot erase a recent attempt.
+                    const transaction = await store.begin();
+                    try {
+                        const notificationState = await transaction.getRow(
+                            "SELECT last_notification_at, last_notification_attempt_at FROM monitor WHERE id = ?",
+                            [bean.id]
+                        );
+                        if (notificationState) {
+                            bean.last_notification_at = notificationState.last_notification_at;
+                            bean.lastNotificationAt = notificationState.last_notification_at;
+                            bean.last_notification_attempt_at = notificationState.last_notification_attempt_at;
+                            bean.lastNotificationAttemptAt = notificationState.last_notification_attempt_at;
+                        }
+                        await transaction.store(bean);
+                        await transaction.commit();
+                    } catch (error) {
+                        await transaction.rollback();
+                        throw error;
+                    }
+
+                    if (removeGroupChildren) {
+                        await Monitor.unlinkAllChildren(store, monitorID);
+                    }
+
+                    await updateMonitorNotification(bean.id, monitor.notificationIDList);
+
+                    if (await Monitor.isActive(bean.id, bean.active, store)) {
+                        await startMonitorInternal(socket.userID, bean.id);
+                    }
+
+                    await server.sendUpdateMonitorIntoList(socket, bean.id);
+
+                    callback({
+                        ok: true,
+                        msg: "Saved.",
+                        msgi18n: true,
+                        monitorID: bean.id,
+                    });
                 });
             } catch (e) {
                 log.error("monitor", e);
@@ -1805,6 +1811,29 @@ function runMonitorLifecycleOperation(monitorID, operation) {
 }
 
 /**
+ * Start the specified monitor without acquiring the lifecycle lock.
+ * @param {number} userID ID of user who owns monitor
+ * @param {number} monitorID ID of monitor to start
+ * @returns {Promise<void>}
+ */
+async function startMonitorInternal(userID, monitorID) {
+    log.info("manage", `Resume Monitor: ${monitorID} User ID: ${userID}`);
+
+    await store.exec("UPDATE monitor SET active = 1 WHERE id = ? AND user_id = ? ", [monitorID, userID]);
+
+    const runningMonitor = server.monitorList[monitorID];
+    if (runningMonitor) {
+        await runningMonitor.stop();
+    }
+
+    // Reload only after the old scheduler has stopped, so an in-flight notification cannot
+    // update the database between this read and installing the new runtime object.
+    const monitor = await store.findOne("monitor", " id = ? ", [monitorID]);
+    server.monitorList[monitor.id] = monitor;
+    await monitor.start(io, heartbeatData, server, runHeartbeatWrite, responseCache);
+}
+
+/**
  * Start the specified monitor
  * @param {number} userID ID of user who owns monitor
  * @param {number} monitorID ID of monitor to start
@@ -1813,22 +1842,7 @@ function runMonitorLifecycleOperation(monitorID, operation) {
 async function startMonitor(userID, monitorID) {
     await checkOwner(userID, monitorID);
 
-    return runMonitorLifecycleOperation(monitorID, async () => {
-        log.info("manage", `Resume Monitor: ${monitorID} User ID: ${userID}`);
-
-        await store.exec("UPDATE monitor SET active = 1 WHERE id = ? AND user_id = ? ", [monitorID, userID]);
-
-        const runningMonitor = server.monitorList[monitorID];
-        if (runningMonitor) {
-            await runningMonitor.stop();
-        }
-
-        // Reload only after the old scheduler has stopped, so an in-flight notification cannot
-        // update the database between this read and installing the new runtime object.
-        const monitor = await store.findOne("monitor", " id = ? ", [monitorID]);
-        server.monitorList[monitor.id] = monitor;
-        await monitor.start(io, heartbeatData, server, runHeartbeatWrite, responseCache);
-    });
+    return runMonitorLifecycleOperation(monitorID, () => startMonitorInternal(userID, monitorID));
 }
 
 /**
@@ -1850,16 +1864,24 @@ async function restartMonitor(userID, monitorID) {
 async function pauseMonitor(userID, monitorID) {
     await checkOwner(userID, monitorID);
 
-    return runMonitorLifecycleOperation(monitorID, async () => {
-        log.info("manage", `Pause Monitor: ${monitorID} User ID: ${userID}`);
+    return runMonitorLifecycleOperation(monitorID, () => pauseMonitorInternal(userID, monitorID));
+}
 
-        await store.exec("UPDATE monitor SET active = 0 WHERE id = ? AND user_id = ? ", [monitorID, userID]);
+/**
+ * Pause the specified monitor without acquiring the lifecycle lock.
+ * @param {number} userID ID of user who owns monitor
+ * @param {number} monitorID ID of monitor to pause
+ * @returns {Promise<void>}
+ */
+async function pauseMonitorInternal(userID, monitorID) {
+    log.info("manage", `Pause Monitor: ${monitorID} User ID: ${userID}`);
 
-        if (monitorID in server.monitorList) {
-            await server.monitorList[monitorID].stop();
-            server.monitorList[monitorID].active = 0;
-        }
-    });
+    await store.exec("UPDATE monitor SET active = 0 WHERE id = ? AND user_id = ? ", [monitorID, userID]);
+
+    if (monitorID in server.monitorList) {
+        await server.monitorList[monitorID].stop();
+        server.monitorList[monitorID].active = 0;
+    }
 }
 
 /**

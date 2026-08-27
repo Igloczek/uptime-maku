@@ -172,7 +172,7 @@ describe("Resend interval migration", () => {
         );
     });
 
-    test("uses observed push heartbeat cadence and the latest legacy resend reset", async () => {
+    test("preserves the configured push cadence and the latest legacy resend reset", async () => {
         const dbPath = path.join(dir, "kuma.db");
         const db = new BunDatabase(dbPath, { create: true, strict: true });
         try {
@@ -205,7 +205,7 @@ describe("Resend interval migration", () => {
             testMode: true,
         });
 
-        expect(await store.getCell("SELECT resend_interval FROM monitor WHERE id = 1")).toBe(1);
+        expect(await store.getCell("SELECT resend_interval FROM monitor WHERE id = 1")).toBe(30);
         expect(await store.getCell("SELECT last_notification_at FROM monitor WHERE id = 1")).toBe(
             "2026-08-07 12:00:20.000"
         );
