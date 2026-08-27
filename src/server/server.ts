@@ -876,7 +876,26 @@ let needSetup = false;
 
                 bean.validate();
 
-                await store.store(bean);
+                // Notification delivery updates the same monitor row asynchronously. Store the edit in a
+                // transaction after re-reading both timestamps so a stale edit cannot erase a recent attempt.
+                const transaction = await store.begin();
+                try {
+                    const notificationState = await transaction.getRow(
+                        "SELECT last_notification_at, last_notification_attempt_at FROM monitor WHERE id = ?",
+                        [bean.id]
+                    );
+                    if (notificationState) {
+                        bean.last_notification_at = notificationState.last_notification_at;
+                        bean.lastNotificationAt = notificationState.last_notification_at;
+                        bean.last_notification_attempt_at = notificationState.last_notification_attempt_at;
+                        bean.lastNotificationAttemptAt = notificationState.last_notification_attempt_at;
+                    }
+                    await transaction.store(bean);
+                    await transaction.commit();
+                } catch (error) {
+                    await transaction.rollback();
+                    throw error;
+                }
 
                 if (removeGroupChildren) {
                     await Monitor.unlinkAllChildren(store, monitor.id);

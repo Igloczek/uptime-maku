@@ -134,9 +134,14 @@ async function pushResponse(url, pushToken, server, store, heartbeatData, settin
 
             if (shouldNotify) {
                 log.debug("monitor", `[${monitor.name}] sendNotification`);
-                await Monitor.sendNotification(isFirstBeat, monitor, bean, store, server);
-                if (!isFirstBeat || bean.status === DOWN) {
-                    await Monitor.markNotificationSent(monitor, store);
+                const notificationResult = await Monitor.sendNotification(isFirstBeat, monitor, bean, store, server);
+                if (notificationResult?.attempted) {
+                    await Monitor.recordNotificationAttempt(
+                        monitor,
+                        store,
+                        notificationResult.sent,
+                        server.monitorList?.[monitorID]
+                    );
                 }
             }
 

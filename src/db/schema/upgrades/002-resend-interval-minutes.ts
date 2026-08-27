@@ -2,6 +2,8 @@ import type { SchemaMigration, SQLiteTransaction } from "@/server/db-migrations"
 
 const RESEND_INTERVAL_MIGRATION_KEY = "resend_interval_unit";
 const RESEND_INTERVAL_MIGRATION_VALUE = "minutes";
+const DEFAULT_LEGACY_INTERVAL_SECONDS = 60;
+const PUSH_HEARTBEAT_HISTORY_LIMIT = 100;
 
 export async function upgrade002ResendIntervalMinutesSchema(migration: SchemaMigration) {
     if (!migration.hasTable("monitor")) {
@@ -9,22 +11,63 @@ export async function upgrade002ResendIntervalMinutesSchema(migration: SchemaMig
     }
 
     migration.addColumnIfMissing("monitor", "last_notification_at", "DATETIME");
+    migration.addColumnIfMissing("monitor", "last_notification_attempt_at", "DATETIME");
+}
+
+function parseHeartbeatTime(value: unknown) {
+    const parsed = Date.parse(String(value));
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function getObservedPushIntervalSeconds(store: SQLiteTransaction, monitorID: number) {
+    const heartbeats = await store.getAll(
+        "SELECT time FROM heartbeat WHERE monitor_id = ? ORDER BY time DESC LIMIT ?",
+        [monitorID, PUSH_HEARTBEAT_HISTORY_LIMIT]
+    );
+    const times = heartbeats
+        .map((heartbeat) => parseHeartbeatTime((heartbeat as { time: unknown }).time))
+        .filter((time): time is number => time !== null);
+    const intervals = [];
+
+    for (let index = 1; index < times.length; index++) {
+        const intervalSeconds = (times[index - 1] - times[index]) / 1000;
+        if (intervalSeconds > 0) {
+            intervals.push(intervalSeconds);
+        }
+    }
+
+    if (intervals.length === 0) {
+        return null;
+    }
+
+    intervals.sort((left, right) => left - right);
+    const middle = Math.floor(intervals.length / 2);
+    return intervals.length % 2 === 0 ? (intervals[middle - 1] + intervals[middle]) / 2 : intervals[middle];
 }
 
 async function migrateLegacyResendIntervals(store: SQLiteTransaction) {
     const monitors = await store.getAll(
-        "SELECT id, interval, resend_interval FROM monitor WHERE resend_interval IS NOT NULL AND resend_interval > 0"
+        "SELECT id, type, interval, resend_interval FROM monitor WHERE resend_interval IS NOT NULL AND resend_interval > 0"
     );
+    const hasHeartbeat = await store.hasTable("heartbeat");
 
     for (const monitor of monitors) {
-        const row = monitor as { id: number; interval: number; resend_interval: number };
+        const row = monitor as { id: number; type: string; interval: number; resend_interval: number };
         const legacyChecks = Number(row.resend_interval);
         if (!Number.isFinite(legacyChecks) || legacyChecks <= 0) {
             continue;
         }
 
         const intervalSeconds = Number(row.interval);
-        const effectiveIntervalSeconds = Number.isFinite(intervalSeconds) && intervalSeconds > 0 ? intervalSeconds : 60;
+        let effectiveIntervalSeconds =
+            Number.isFinite(intervalSeconds) && intervalSeconds > 0 ? intervalSeconds : DEFAULT_LEGACY_INTERVAL_SECONDS;
+
+        if (row.type === "push") {
+            effectiveIntervalSeconds =
+                (hasHeartbeat ? await getObservedPushIntervalSeconds(store, row.id) : null) ??
+                DEFAULT_LEGACY_INTERVAL_SECONDS;
+        }
+
         const convertedMinutes = Math.ceil((legacyChecks * effectiveIntervalSeconds) / 60);
         const resendIntervalMinutes = Math.min(Number.MAX_SAFE_INTEGER, Math.max(1, convertedMinutes));
 
@@ -40,7 +83,8 @@ async function seedLastNotificationTimes(store: SQLiteTransaction) {
     const heartbeats = await store.getAll(
         `SELECT monitor_id, MAX(time) AS last_notification_at
          FROM heartbeat
-         WHERE important = 1 AND status IN (0, 1)
+         WHERE (important = 1 AND status IN (0, 1))
+            OR (status = 0 AND down_count = 0)
          GROUP BY monitor_id`
     );
 
@@ -48,8 +92,10 @@ async function seedLastNotificationTimes(store: SQLiteTransaction) {
         const row = heartbeat as { monitor_id: number; last_notification_at: string };
         if (row.last_notification_at) {
             await store.exec(
-                "UPDATE monitor SET last_notification_at = ? WHERE id = ? AND last_notification_at IS NULL",
-                [row.last_notification_at, row.monitor_id]
+                `UPDATE monitor
+                 SET last_notification_at = ?, last_notification_attempt_at = ?
+                 WHERE id = ? AND last_notification_at IS NULL AND last_notification_attempt_at IS NULL`,
+                [row.last_notification_at, row.last_notification_at, row.monitor_id]
             );
         }
     }

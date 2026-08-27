@@ -196,6 +196,7 @@ export const expectedTableColumns = {
         "bearer_token",
         "gamedig_token",
         "last_notification_at",
+        "last_notification_attempt_at",
     ],
     monitor_group: ["id", "monitor_id", "group_id", "weight", "send_url", "custom_url"],
     monitor_maintenance: ["id", "monitor_id", "maintenance_id"],

@@ -81,6 +81,7 @@ const monitorColumnTypes = {
     remote_browser: "INTEGER",
     resend_interval: "INTEGER NOT NULL DEFAULT 0",
     last_notification_at: "DATETIME",
+    last_notification_attempt_at: "DATETIME",
     response_max_length: "INTEGER NOT NULL DEFAULT 1024",
     retry_interval: "INTEGER NOT NULL DEFAULT 0",
     retry_only_on_status_code_failure: "BOOLEAN NOT NULL DEFAULT 0",

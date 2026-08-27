@@ -171,6 +171,48 @@ describe("Resend interval migration", () => {
             "minutes"
         );
     });
+
+    test("uses observed push heartbeat cadence and the latest legacy resend reset", async () => {
+        const dbPath = path.join(dir, "kuma.db");
+        const db = new BunDatabase(dbPath, { create: true, strict: true });
+        try {
+            db.run("UPDATE monitor SET type = 'push', interval = 300, resend_interval = 6 WHERE id = 1");
+            db.run(`CREATE TABLE heartbeat (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                monitor_id INTEGER NOT NULL,
+                status INTEGER NOT NULL,
+                time DATETIME NOT NULL,
+                important BOOLEAN NOT NULL DEFAULT 0,
+                down_count INTEGER NOT NULL DEFAULT 0
+            )`);
+            db.run("INSERT INTO heartbeat (monitor_id, status, time, important, down_count) VALUES (1, 0, ?, 1, 0)", [
+                "2026-08-07 12:00:00.000",
+            ]);
+            db.run("INSERT INTO heartbeat (monitor_id, status, time, important, down_count) VALUES (1, 0, ?, 0, 1)", [
+                "2026-08-07 12:00:10.000",
+            ]);
+            db.run("INSERT INTO heartbeat (monitor_id, status, time, important, down_count) VALUES (1, 0, ?, 0, 0)", [
+                "2026-08-07 12:00:20.000",
+            ]);
+        } finally {
+            db.close();
+        }
+
+        store = new BunSQLiteRedbean();
+        await store.connect({
+            sqlitePath: dbPath,
+            templatePath: dbPath,
+            testMode: true,
+        });
+
+        expect(await store.getCell("SELECT resend_interval FROM monitor WHERE id = 1")).toBe(1);
+        expect(await store.getCell("SELECT last_notification_at FROM monitor WHERE id = 1")).toBe(
+            "2026-08-07 12:00:20.000"
+        );
+        expect(await store.getCell("SELECT last_notification_attempt_at FROM monitor WHERE id = 1")).toBe(
+            "2026-08-07 12:00:20.000"
+        );
+    });
 });
 
 describe("Upstream Kuma Knex end-state", () => {

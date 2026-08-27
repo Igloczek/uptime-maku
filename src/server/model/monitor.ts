@@ -1161,9 +1161,15 @@ class Monitor extends BeanModel {
 
                     if (shouldNotify) {
                         log.debug("monitor", `[${this.name}] sendNotification`);
-                        await Monitor.sendNotification(isFirstBeat, this, bean, heartbeatData.store, server);
-                        if (!isFirstBeat || bean.status === DOWN) {
-                            await Monitor.markNotificationSent(this, heartbeatData.store);
+                        const notificationResult = await Monitor.sendNotification(
+                            isFirstBeat,
+                            this,
+                            bean,
+                            heartbeatData.store,
+                            server
+                        );
+                        if (notificationResult?.attempted) {
+                            await Monitor.recordNotificationAttempt(this, heartbeatData.store, notificationResult.sent);
                         }
                     }
 
@@ -1603,7 +1609,11 @@ class Monitor extends BeanModel {
             return false;
         }
 
-        const lastNotificationAt = monitor.lastNotificationAt ?? monitor.last_notification_at;
+        const lastNotificationAt =
+            monitor.lastNotificationAttemptAt ??
+            monitor.last_notification_attempt_at ??
+            monitor.lastNotificationAt ??
+            monitor.last_notification_at;
         if (!lastNotificationAt) {
             return false;
         }
@@ -1620,16 +1630,36 @@ class Monitor extends BeanModel {
     }
 
     /**
-     * Persist the timestamp after a notification event so repeated checks do not send duplicates.
+     * Persist the timestamp after a notification attempt so repeated checks do not send duplicates.
      * @param {Monitor} monitor Monitor that generated the notification
      * @param {object} store SQLite store
      * @returns {Promise<void>}
      */
-    static async markNotificationSent(monitor, store) {
+    static async recordNotificationAttempt(monitor, store, sent, runtimeMonitor = null) {
         const timestamp = store.isoDateTimeMillis(dayjs.utc());
-        await store.exec("UPDATE monitor SET last_notification_at = ? WHERE id = ?", [timestamp, monitor.id]);
-        monitor.last_notification_at = timestamp;
-        monitor.lastNotificationAt = timestamp;
+        if (sent) {
+            await store.exec(
+                "UPDATE monitor SET last_notification_at = ?, last_notification_attempt_at = ? WHERE id = ?",
+                [timestamp, timestamp, monitor.id]
+            );
+        } else {
+            await store.exec("UPDATE monitor SET last_notification_attempt_at = ? WHERE id = ?", [
+                timestamp,
+                monitor.id,
+            ]);
+        }
+
+        for (const target of [monitor, runtimeMonitor]) {
+            if (!target) {
+                continue;
+            }
+            target.last_notification_attempt_at = timestamp;
+            target.lastNotificationAttemptAt = timestamp;
+            if (sent) {
+                target.last_notification_at = timestamp;
+                target.lastNotificationAt = timestamp;
+            }
+        }
     }
 
     /**
@@ -1669,76 +1699,82 @@ class Monitor extends BeanModel {
      * @param {boolean} isFirstBeat Is this beat the first of this monitor?
      * @param {Monitor} monitor The monitor to send a notification about
      * @param {import("@/server/model/heartbeat")} bean Status information about monitor
-     * @returns {Promise<void>}
+     * @returns {Promise<{attempted: boolean, sent: boolean}>} Notification delivery result
      */
     static async sendNotification(isFirstBeat, monitor, bean, store, server) {
-        if (!isFirstBeat || bean.status === DOWN) {
-            const notificationList = await Monitor.getNotificationList(monitor, store);
+        if (isFirstBeat && bean.status !== DOWN) {
+            return { attempted: false, sent: false };
+        }
 
-            let text;
-            if (bean.status === UP) {
-                text = "✅ Up";
-            } else {
-                text = "🔴 Down";
-            }
+        const notificationList = (await Monitor.getNotificationList(monitor, store)) || [];
+        if (notificationList.length === 0) {
+            return { attempted: false, sent: false };
+        }
 
-            let msg = `[${monitor.name}] [${text}] ${bean.msg}`;
+        let text;
+        if (bean.status === UP) {
+            text = "✅ Up";
+        } else {
+            text = "🔴 Down";
+        }
 
-            const heartbeatJSON = await bean.toJSONAsync({ decodeResponse: true });
-            const monitorData = [{ id: monitor.id, active: monitor.active, name: monitor.name }];
-            const preloadData = await Monitor.preparePreloadData(store, monitorData, server);
-            // Prevent if the msg is undefined, notifications such as Discord cannot send out.
-            if (!heartbeatJSON["msg"]) {
-                heartbeatJSON["msg"] = "N/A";
-            }
+        let msg = `[${monitor.name}] [${text}] ${bean.msg}`;
 
-            // Also provide the time in server timezone
-            heartbeatJSON["timezone"] = await server.getTimezone();
-            heartbeatJSON["timezoneOffset"] = server.getTimezoneOffset();
-            heartbeatJSON["localDateTime"] = dayjs
-                .utc(heartbeatJSON["time"])
-                .tz(heartbeatJSON["timezone"])
-                .format(SQL_DATETIME_FORMAT);
+        const heartbeatJSON = await bean.toJSONAsync({ decodeResponse: true });
+        const monitorData = [{ id: monitor.id, active: monitor.active, name: monitor.name }];
+        const preloadData = await Monitor.preparePreloadData(store, monitorData, server);
+        // Prevent if the msg is undefined, notifications such as Discord cannot send out.
+        if (!heartbeatJSON["msg"]) {
+            heartbeatJSON["msg"] = "N/A";
+        }
 
-            // Calculate downtime tracking information when service comes back up
-            // This makes downtime information available to all notification providers
-            if (bean.status === UP && monitor.id) {
-                try {
-                    // Filter by important = 1 to get the state transition heartbeat (e.g. UP→DOWN),
-                    // not the most recent DOWN heartbeat which would be the last check before recovery.
-                    const lastDownHeartbeat = await store.getRow(
-                        "SELECT time FROM heartbeat WHERE monitor_id = ? AND status = ? AND important = 1 ORDER BY time DESC LIMIT 1",
-                        [monitor.id, DOWN]
-                    );
+        // Also provide the time in server timezone
+        heartbeatJSON["timezone"] = await server.getTimezone();
+        heartbeatJSON["timezoneOffset"] = server.getTimezoneOffset();
+        heartbeatJSON["localDateTime"] = dayjs
+            .utc(heartbeatJSON["time"])
+            .tz(heartbeatJSON["timezone"])
+            .format(SQL_DATETIME_FORMAT);
 
-                    if (lastDownHeartbeat && lastDownHeartbeat.time) {
-                        heartbeatJSON["lastDownTime"] = lastDownHeartbeat.time;
-                    }
-                } catch (error) {
-                    // If we can't calculate downtime, just continue without it
-                    // Silently fail to avoid disrupting notification sending
-                    log.debug(
-                        "monitor",
-                        `[${monitor.name}] Could not calculate downtime information: ${error.message}`
-                    );
+        // Calculate downtime tracking information when service comes back up
+        // This makes downtime information available to all notification providers
+        if (bean.status === UP && monitor.id) {
+            try {
+                // Filter by important = 1 to get the state transition heartbeat (e.g. UP→DOWN),
+                // not the most recent DOWN heartbeat which would be the last check before recovery.
+                const lastDownHeartbeat = await store.getRow(
+                    "SELECT time FROM heartbeat WHERE monitor_id = ? AND status = ? AND important = 1 ORDER BY time DESC LIMIT 1",
+                    [monitor.id, DOWN]
+                );
+
+                if (lastDownHeartbeat && lastDownHeartbeat.time) {
+                    heartbeatJSON["lastDownTime"] = lastDownHeartbeat.time;
                 }
-            }
-
-            for (let notification of notificationList) {
-                try {
-                    await Notification.send(
-                        server.notificationProviderRegistry,
-                        JSON.parse(notification.config),
-                        msg,
-                        monitor.toJSON(preloadData, false),
-                        heartbeatJSON
-                    );
-                } catch (e) {
-                    log.error("monitor", "Cannot send notification to " + notification.name);
-                    log.error("monitor", e);
-                }
+            } catch (error) {
+                // If we can't calculate downtime, just continue without it
+                // Silently fail to avoid disrupting notification sending
+                log.debug("monitor", `[${monitor.name}] Could not calculate downtime information: ${error.message}`);
             }
         }
+
+        let sent = false;
+        for (let notification of notificationList) {
+            try {
+                await Notification.send(
+                    server.notificationProviderRegistry,
+                    JSON.parse(notification.config),
+                    msg,
+                    monitor.toJSON(preloadData, false),
+                    heartbeatJSON
+                );
+                sent = true;
+            } catch (e) {
+                log.error("monitor", "Cannot send notification to " + notification.name);
+                log.error("monitor", e);
+            }
+        }
+
+        return { attempted: true, sent };
     }
 
     /**
