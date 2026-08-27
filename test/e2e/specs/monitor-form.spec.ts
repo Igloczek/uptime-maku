@@ -133,6 +133,14 @@ test.describe("Monitor Form", () => {
         expect(await timeout.evaluate((input) => input.checkValidity())).toBe(false);
         await timeout.fill("0.1");
         expect(await timeout.evaluate((input) => input.checkValidity())).toBe(true);
+
+        const resendInterval = page.locator("#resend-interval");
+        await expect(resendInterval).toBeVisible();
+        await expect(resendInterval).toHaveAttribute("min", "0");
+        await expect(resendInterval).toHaveAttribute("step", "1");
+        await resendInterval.fill("10");
+        expect(await resendInterval.evaluate((input) => input.checkValidity())).toBe(true);
+        await expect(page.getByText("Resend every 10 minutes")).toBeVisible();
     });
 
     test("successful condition", async ({ page }, testInfo) => {

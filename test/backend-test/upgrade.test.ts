@@ -7,7 +7,7 @@ import path from "node:path";
 import { Database as BunDatabase } from "bun:sqlite";
 import { applySqlFile } from "@/db/schema/sql-utils";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
-import { SCHEMA_VERSION_KEY, getSchemaVersion } from "@/server/db-migrations";
+import { LATEST_SCHEMA_VERSION, SCHEMA_VERSION_KEY, getSchemaVersion } from "@/server/db-migrations";
 
 const projectRoot = path.join(import.meta.dirname, "../..");
 const baselineFixturePath = path.join(import.meta.dirname, "fixtures/upstream-kuma-baseline.sql");
@@ -71,12 +71,10 @@ describe("Upstream Kuma upgrade", () => {
     });
 
     test("001-upstream-baseline migrates upstream Kuma data and sets schema version", async () => {
-        expect(await getSchemaVersion(store)).toBe(1);
+        expect(await getSchemaVersion(store)).toBe(LATEST_SCHEMA_VERSION);
 
-        const schemaVersion = await store.getCell('SELECT value FROM setting WHERE "key" = ?', [
-            SCHEMA_VERSION_KEY,
-        ]);
-        expect(schemaVersion).toBe("1");
+        const schemaVersion = await store.getCell('SELECT value FROM setting WHERE "key" = ?', [SCHEMA_VERSION_KEY]);
+        expect(schemaVersion).toBe(String(LATEST_SCHEMA_VERSION));
 
         const gamedigGame = await store.getCell("SELECT game FROM monitor WHERE name = ?", ["GameDig TF2"]);
         expect(gamedigGame).toBe("teamfortress2");
@@ -131,6 +129,50 @@ describe("Upstream Kuma upgrade", () => {
     });
 });
 
+describe("Resend interval migration", () => {
+    let dir;
+    let store;
+
+    beforeEach(() => {
+        dir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-resend-migration-"));
+        const dbPath = path.join(dir, "kuma.db");
+        loadSqlFixture(dbPath, fs.readFileSync(baselineFixturePath, "utf8"));
+
+        const db = new BunDatabase(dbPath, { create: true, strict: true });
+        try {
+            db.run("ALTER TABLE monitor ADD COLUMN resend_interval INTEGER NOT NULL DEFAULT 0");
+            db.run("UPDATE monitor SET interval = 20, resend_interval = 31 WHERE id = 1");
+            db.run('INSERT INTO setting ("key", value) VALUES (?, ?)', [SCHEMA_VERSION_KEY, "1"]);
+        } finally {
+            db.close();
+        }
+    });
+
+    afterEach(async () => {
+        if (store) {
+            await store.close();
+        }
+        fs.rmSync(dir, { recursive: true, force: true });
+    });
+
+    test("converts legacy check counts to whole minutes exactly once", async () => {
+        const dbPath = path.join(dir, "kuma.db");
+        store = new BunSQLiteRedbean();
+        await store.connect({
+            sqlitePath: dbPath,
+            templatePath: dbPath,
+            testMode: true,
+        });
+
+        expect(await getSchemaVersion(store)).toBe(LATEST_SCHEMA_VERSION);
+        expect(await store.getCell("SELECT resend_interval FROM monitor WHERE id = 1")).toBe(11);
+        expect(await store.getCell("SELECT last_notification_at FROM monitor WHERE id = 1")).toBeNull();
+        expect(await store.getCell('SELECT value FROM setting WHERE "key" = ?', ["resend_interval_unit"])).toBe(
+            "minutes"
+        );
+    });
+});
+
 describe("Upstream Kuma Knex end-state", () => {
     let dir;
     let store;
@@ -157,7 +199,7 @@ describe("Upstream Kuma Knex end-state", () => {
     });
 
     test("001-upstream-baseline runs when marker columns exist but the schema-version setting is absent", async () => {
-        expect(await getSchemaVersion(store)).toBe(1);
+        expect(await getSchemaVersion(store)).toBe(LATEST_SCHEMA_VERSION);
 
         const gamedigGame = await store.getCell("SELECT game FROM monitor WHERE name = ?", ["GameDig TF2"]);
         expect(gamedigGame).toBe("teamfortress2");
@@ -198,7 +240,7 @@ describe("Fresh Uptime Maku template", () => {
         fs.copyFileSync(templatePath, dbPath);
 
         const beforeVersion = readSettingValue(dbPath, SCHEMA_VERSION_KEY);
-        expect(beforeVersion).toBe("1");
+        expect(beforeVersion).toBe(String(LATEST_SCHEMA_VERSION));
 
         const beforeUserCount = readUserCount(dbPath);
 
@@ -209,7 +251,7 @@ describe("Fresh Uptime Maku template", () => {
             testMode: true,
         });
 
-        expect(await getSchemaVersion(store)).toBe(1);
+        expect(await getSchemaVersion(store)).toBe(LATEST_SCHEMA_VERSION);
         expect(await store.count("user")).toBe(beforeUserCount);
         expect(await store.count("notification")).toBe(0);
     });

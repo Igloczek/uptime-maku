@@ -87,6 +87,20 @@ afterEach(async () => {
 });
 
 describe("heartbeat data plane", () => {
+    test("treats resend interval as elapsed minutes", () => {
+        const monitor = {
+            resendInterval: 10,
+            lastNotificationAt: "2026-08-07T12:00:00Z",
+        };
+
+        expect(Monitor.isResendDue(monitor, Date.parse("2026-08-07T12:09:59Z"))).toBe(false);
+        expect(Monitor.isResendDue(monitor, Date.parse("2026-08-07T12:10:00Z"))).toBe(true);
+        expect(Monitor.isResendDue({ ...monitor, lastNotificationAt: null }, Date.parse("2026-08-07T12:10:00Z"))).toBe(
+            false
+        );
+        expect(Monitor.isResendDue({ ...monitor, resendInterval: 0 }, Date.parse("2026-08-07T12:10:00Z"))).toBe(false);
+    });
+
     test("isolates writes, reads, rolling buckets, and cache ownership between two real stores", async () => {
         const first = await createRuntime("first");
         const second = await createRuntime("second");
@@ -266,7 +280,7 @@ describe("heartbeat data plane", () => {
         expect((await data.recentForOwner(2, 2, 24)).map((beat) => beat.msg)).toEqual(["foreign-secret"]);
     });
 
-    test("serializes concurrent push transitions and resend counters without lost updates", async () => {
+    test("serializes concurrent push transitions and time-based resends without duplicate notifications", async () => {
         const { data, server, settings, store } = await createRuntime("push-race");
         Prometheus.prototype.update = () => {};
         await store.exec(
@@ -298,7 +312,7 @@ describe("heartbeat data plane", () => {
         await store.exec("DELETE FROM heartbeat");
         data.reset();
         notifications.length = 0;
-        await store.exec("UPDATE monitor SET maxretries = 2, resend_interval = 2 WHERE id = 1");
+        await store.exec("UPDATE monitor SET maxretries = 2, resend_interval = 10 WHERE id = 1");
         await data.write(heartbeat(store, { important: 0 }));
         const retryResponses = await Promise.all(
             Array.from({ length: 5 }, (_, request) =>
@@ -314,9 +328,16 @@ describe("heartbeat data plane", () => {
             [PENDING, 1, 0],
             [PENDING, 2, 0],
             [DOWN, 3, 0],
-            [DOWN, 4, 1],
+            [DOWN, 4, 0],
             [DOWN, 5, 0],
         ]);
+        expect(notifications).toHaveLength(1);
+
+        await store.exec("UPDATE monitor SET last_notification_at = datetime('now', '-11 minutes') WHERE id = 1");
+        await handleApiRequest(
+            new Request("http://localhost/api/push/race-token?status=down&msg=retry-after-interval"),
+            context
+        );
         expect(notifications).toHaveLength(2);
     });
 

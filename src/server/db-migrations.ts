@@ -1,4 +1,11 @@
-import { upgrade001UpstreamBaselineData, upgrade001UpstreamBaselineSchema } from "../db/schema/upgrades/001-upstream-baseline.js";
+import {
+    upgrade001UpstreamBaselineData,
+    upgrade001UpstreamBaselineSchema,
+} from "../db/schema/upgrades/001-upstream-baseline.js";
+import {
+    upgrade002ResendIntervalMinutesData,
+    upgrade002ResendIntervalMinutesSchema,
+} from "@/db/schema/upgrades/002-resend-interval-minutes";
 import { log } from "@/server/logger";
 
 export {
@@ -11,7 +18,7 @@ export {
 
 // Persisted by the first rewrite migration series. Keep the value for existing databases.
 export const SCHEMA_VERSION_KEY = "buna_schema_version";
-export const LATEST_SCHEMA_VERSION = 1;
+export const LATEST_SCHEMA_VERSION = 2;
 
 export interface SQLiteTransaction {
     exec(sql: string, params?: unknown[]): Promise<unknown>;
@@ -68,6 +75,12 @@ const upgrades: SchemaUpgrade[] = [
         name: "001-upstream-baseline",
         runSchema: upgrade001UpstreamBaselineSchema,
         runData: upgrade001UpstreamBaselineData,
+    },
+    {
+        version: 2,
+        name: "002-resend-interval-minutes",
+        runSchema: upgrade002ResendIntervalMinutesSchema,
+        runData: upgrade002ResendIntervalMinutesData,
     },
 ];
 

@@ -4,13 +4,9 @@ import { describe, test, expect } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 import { Database as BunDatabase } from "bun:sqlite";
-import {
-    expectedIndexes,
-    expectedTableColumns,
-    expectedTables,
-} from "@/db/schema/expected-schema";
+import { expectedIndexes, expectedTableColumns, expectedTables } from "@/db/schema/expected-schema";
 import { applySqlFile } from "@/db/schema/sql-utils";
-import { SCHEMA_VERSION_KEY } from "@/server/db-migrations";
+import { LATEST_SCHEMA_VERSION, SCHEMA_VERSION_KEY } from "@/server/db-migrations";
 
 const projectRoot = path.join(import.meta.dirname, "../..");
 const kumaDbPath = path.join(projectRoot, "out/kuma.db");
@@ -24,7 +20,10 @@ function getTables(db) {
 }
 
 function getColumns(db, table) {
-    return db.query(`PRAGMA table_info("${table}")`).all().map((row) => row.name);
+    return db
+        .query(`PRAGMA table_info("${table}")`)
+        .all()
+        .map((row) => row.name);
 }
 
 function getIndexes(db) {
@@ -67,10 +66,8 @@ describe("Database schema contract", () => {
         try {
             assertExactSchemaContract(db);
 
-            const schemaVersion = db
-                .query('SELECT value FROM setting WHERE "key" = ?')
-                .get(SCHEMA_VERSION_KEY)?.value;
-            expect(schemaVersion).toBe("1");
+            const schemaVersion = db.query('SELECT value FROM setting WHERE "key" = ?').get(SCHEMA_VERSION_KEY)?.value;
+            expect(schemaVersion).toBe(String(LATEST_SCHEMA_VERSION));
         } finally {
             db.close();
         }

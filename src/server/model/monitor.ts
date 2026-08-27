@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import httpClient from "@/server/http-client";
 import { Prometheus } from "@/server/prometheus";
 import { log } from "@/server/logger";
@@ -49,6 +50,8 @@ import { writeErrorLog } from "@/server/error-log";
 const brotliCompress = promisify(zlib.brotliCompress);
 const version = packageJson.version;
 let rootCertificates;
+
+dayjs.extend(utc);
 
 function normalizeNumber(value, { error, integer = false, safeInteger = false, min, max }) {
     if (
@@ -1103,6 +1106,7 @@ class Monitor extends BeanModel {
                     log.debug("monitor", `[${this.name}] Check isImportant`);
                     const isImportant = Monitor.isImportantBeat(isFirstBeat, previousBeat?.status, bean.status);
                     let shouldNotify = false;
+                    bean.downCount = 0;
 
                     if (isImportant) {
                         bean.important = true;
@@ -1114,19 +1118,14 @@ class Monitor extends BeanModel {
                                 `[${this.name}] will not sendNotification because it is (or was) under maintenance`
                             );
                         }
-                        bean.downCount = 0;
                     } else {
                         bean.important = false;
-                        if (bean.status === DOWN && this.resendInterval > 0) {
-                            ++bean.downCount;
-                            if (bean.downCount >= this.resendInterval) {
-                                log.debug(
-                                    "monitor",
-                                    `[${this.name}] sendNotification again: Down Count: ${bean.downCount} | Resend Interval: ${this.resendInterval}`
-                                );
-                                shouldNotify = true;
-                                bean.downCount = 0;
-                            }
+                        if (bean.status === DOWN && Monitor.isResendDue(this)) {
+                            log.debug(
+                                "monitor",
+                                `[${this.name}] sendNotification again: Resend Interval: ${this.resendInterval} minutes`
+                            );
+                            shouldNotify = true;
                         }
                     }
 
@@ -1151,7 +1150,7 @@ class Monitor extends BeanModel {
                     } else {
                         log.warn(
                             "monitor",
-                            `Monitor #${this.id} '${this.name}': Failing: ${bean.msg} | Interval: ${beatInterval} seconds | Type: ${this.type} | Down Count: ${bean.downCount} | Resend Interval: ${this.resendInterval}`
+                            `Monitor #${this.id} '${this.name}': Failing: ${bean.msg} | Interval: ${beatInterval} seconds | Type: ${this.type} | Resend Interval: ${this.resendInterval} minutes`
                         );
                     }
 
@@ -1163,6 +1162,9 @@ class Monitor extends BeanModel {
                     if (shouldNotify) {
                         log.debug("monitor", `[${this.name}] sendNotification`);
                         await Monitor.sendNotification(isFirstBeat, this, bean, heartbeatData.store, server);
+                        if (!isFirstBeat || bean.status === DOWN) {
+                            await Monitor.markNotificationSent(this, heartbeatData.store);
+                        }
                     }
 
                     if (isImportant) {
@@ -1589,6 +1591,48 @@ class Monitor extends BeanModel {
     }
 
     /**
+     * Check whether another notification is due while a monitor remains down.
+     * The interval is configured in minutes and measured from the last notification attempt.
+     * @param {Monitor} monitor Monitor to check
+     * @param {number|Date|object} now Current time, useful for deterministic tests
+     * @returns {boolean} True when a resend is due
+     */
+    static isResendDue(monitor, now = dayjs.utc()) {
+        const resendInterval = Number(monitor.resendInterval);
+        if (!Number.isSafeInteger(resendInterval) || resendInterval <= 0) {
+            return false;
+        }
+
+        const lastNotificationAt = monitor.lastNotificationAt ?? monitor.last_notification_at;
+        if (!lastNotificationAt) {
+            return false;
+        }
+
+        const lastNotificationTime = dayjs.utc(lastNotificationAt).valueOf();
+        const currentTime = dayjs.utc(now).valueOf();
+        const intervalMilliseconds = resendInterval * 60 * 1000;
+
+        return (
+            Number.isFinite(lastNotificationTime) &&
+            Number.isFinite(currentTime) &&
+            currentTime - lastNotificationTime >= intervalMilliseconds
+        );
+    }
+
+    /**
+     * Persist the timestamp after a notification event so repeated checks do not send duplicates.
+     * @param {Monitor} monitor Monitor that generated the notification
+     * @param {object} store SQLite store
+     * @returns {Promise<void>}
+     */
+    static async markNotificationSent(monitor, store) {
+        const timestamp = store.isoDateTimeMillis(dayjs.utc());
+        await store.exec("UPDATE monitor SET last_notification_at = ? WHERE id = ?", [timestamp, monitor.id]);
+        monitor.last_notification_at = timestamp;
+        monitor.lastNotificationAt = timestamp;
+    }
+
+    /**
      * Is this beat important for notifications?
      * @param {boolean} isFirstBeat Is this the first beat of this monitor?
      * @param {const} previousBeatStatus Status of the previous beat
@@ -1831,7 +1875,7 @@ class Monitor extends BeanModel {
             max: MAX_INTERVAL_SECOND,
         });
         this.resendInterval = normalizeNumber(this.resendInterval, {
-            error: "Resend interval must be a non-negative safe integer",
+            error: "Resend interval must be a non-negative integer number of minutes",
             safeInteger: true,
             min: 0,
             max: Number.MAX_SAFE_INTEGER,

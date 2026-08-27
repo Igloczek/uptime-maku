@@ -3,7 +3,7 @@
 import { expectedTableColumns } from "@/db/schema/expected-schema";
 
 const monitorColumnTypes = {
-    accepted_statuscodes_json: 'TEXT NOT NULL DEFAULT \'["200-299"]\'',
+    accepted_statuscodes_json: "TEXT NOT NULL DEFAULT '[\"200-299\"]'",
     auth_domain: "TEXT",
     auth_method: "TEXT",
     auth_workstation: "TEXT",
@@ -80,6 +80,7 @@ const monitorColumnTypes = {
     radius_username: "TEXT",
     remote_browser: "INTEGER",
     resend_interval: "INTEGER NOT NULL DEFAULT 0",
+    last_notification_at: "DATETIME",
     response_max_length: "INTEGER NOT NULL DEFAULT 1024",
     retry_interval: "INTEGER NOT NULL DEFAULT 0",
     retry_only_on_status_code_failure: "BOOLEAN NOT NULL DEFAULT 0",

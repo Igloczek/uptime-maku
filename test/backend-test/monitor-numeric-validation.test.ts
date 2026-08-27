@@ -162,7 +162,7 @@ describe("monitor numeric validation", () => {
             [
                 "resendInterval",
                 ["", "bogus", NaN, Infinity, -Infinity, -1, 0.5, Number.MAX_SAFE_INTEGER + 1, null, undefined],
-                "Resend interval must be a non-negative safe integer",
+                "Resend interval must be a non-negative integer number of minutes",
             ],
         ];
 
