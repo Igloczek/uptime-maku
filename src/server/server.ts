@@ -1798,14 +1798,19 @@ async function initDatabase(testMode = false) {
 }
 
 function runMonitorLifecycleOperation(monitorID, operation) {
-    const previous = server.monitorLifecycleOperations.get(monitorID);
+    const lifecycleKey = Number(monitorID);
+    if (!Number.isSafeInteger(lifecycleKey) || lifecycleKey <= 0) {
+        throw new Error("Invalid monitor ID.");
+    }
+
+    const previous = server.monitorLifecycleOperations.get(lifecycleKey);
     const pending = previous ? previous.then(operation) : Promise.resolve().then(operation);
     const settled = pending.catch(() => {});
-    server.monitorLifecycleOperations.set(monitorID, settled);
+    server.monitorLifecycleOperations.set(lifecycleKey, settled);
 
     return pending.finally(() => {
-        if (server.monitorLifecycleOperations.get(monitorID) === settled) {
-            server.monitorLifecycleOperations.delete(monitorID);
+        if (server.monitorLifecycleOperations.get(lifecycleKey) === settled) {
+            server.monitorLifecycleOperations.delete(lifecycleKey);
         }
     });
 }
@@ -1840,9 +1845,10 @@ async function startMonitorInternal(userID, monitorID) {
  * @returns {Promise<void>}
  */
 async function startMonitor(userID, monitorID) {
-    await checkOwner(userID, monitorID);
+    const lifecycleKey = Number(monitorID);
+    await checkOwner(userID, lifecycleKey);
 
-    return runMonitorLifecycleOperation(monitorID, () => startMonitorInternal(userID, monitorID));
+    return runMonitorLifecycleOperation(lifecycleKey, () => startMonitorInternal(userID, lifecycleKey));
 }
 
 /**
@@ -1862,9 +1868,10 @@ async function restartMonitor(userID, monitorID) {
  * @returns {Promise<void>}
  */
 async function pauseMonitor(userID, monitorID) {
-    await checkOwner(userID, monitorID);
+    const lifecycleKey = Number(monitorID);
+    await checkOwner(userID, lifecycleKey);
 
-    return runMonitorLifecycleOperation(monitorID, () => pauseMonitorInternal(userID, monitorID));
+    return runMonitorLifecycleOperation(lifecycleKey, () => pauseMonitorInternal(userID, lifecycleKey));
 }
 
 /**
