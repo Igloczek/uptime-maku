@@ -83,7 +83,7 @@ async function pushResponse(url, pushToken, server, store, heartbeatData, settin
         const monitorID = monitor.id;
 
         await heartbeatData.runOperation(monitorID, async () => {
-            // Reload inside the per-monitor queue so concurrent push requests see the latest notification timestamp.
+            // Reload inside the per-monitor queue so concurrent push requests see the latest monitor configuration.
             monitor = await store.findOne("monitor", " id = ? AND active = 1 ", [monitorID]);
             if (!monitor) {
                 throw new Error("Monitor not found or not active.");
@@ -119,13 +119,18 @@ async function pushResponse(url, pushToken, server, store, heartbeatData, settin
 
             bean.important = Monitor.isImportantBeat(isFirstBeat, previousHeartbeat?.status, bean.status);
             let shouldNotify = false;
+            let notificationsToSend;
 
             if (Monitor.isImportantForNotification(isFirstBeat, previousHeartbeat?.status, bean.status)) {
                 shouldNotify = true;
-            } else if (bean.status === DOWN && Monitor.isResendDue(monitor)) {
+            } else if (bean.status === DOWN) {
+                notificationsToSend = await Monitor.getNotificationListForResend(monitor, store);
+            }
+
+            if (notificationsToSend?.length) {
                 log.debug(
                     "monitor",
-                    `[${monitor.name}] sendNotification again: Resend Interval: ${monitor.resendInterval} minutes`
+                    `[${monitor.name}] sendNotification again`
                 );
                 shouldNotify = true;
             }
@@ -134,15 +139,7 @@ async function pushResponse(url, pushToken, server, store, heartbeatData, settin
 
             if (shouldNotify) {
                 log.debug("monitor", `[${monitor.name}] sendNotification`);
-                const notificationResult = await Monitor.sendNotification(isFirstBeat, monitor, bean, store, server);
-                if (notificationResult?.attempted) {
-                    await Monitor.recordNotificationAttempt(
-                        monitor,
-                        store,
-                        notificationResult.sent,
-                        server.monitorList?.[monitorID]
-                    );
-                }
+                await Monitor.sendNotification(isFirstBeat, monitor, bean, store, server, notificationsToSend);
             }
 
             server.io.to(monitor.user_id).emit("heartbeat", bean.toJSON());

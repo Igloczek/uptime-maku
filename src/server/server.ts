@@ -688,6 +688,7 @@ let needSetup = false;
                 const frontendOnlyProperties = [
                     "humanReadableInterval",
                     "globalpingdnsresolvetypeoptions",
+                    "resendInterval",
                     "responsecheck",
                 ];
                 for (const prop of frontendOnlyProperties) {
@@ -796,7 +797,6 @@ let needSetup = false;
                     bean.tlsKey = monitor.tlsKey;
                     bean.interval = monitor.interval;
                     bean.retryInterval = monitor.retryInterval;
-                    bean.resendInterval = monitor.resendInterval;
                     bean.hostname = monitor.hostname;
                     bean.game = monitor.game;
                     bean.maxretries = monitor.maxretries;
@@ -881,26 +881,7 @@ let needSetup = false;
 
                     bean.validate();
 
-                    // Notification delivery updates the same monitor row asynchronously. Store the edit in a
-                    // transaction after re-reading both timestamps so a stale edit cannot erase a recent attempt.
-                    const transaction = await store.begin();
-                    try {
-                        const notificationState = await transaction.getRow(
-                            "SELECT last_notification_at, last_notification_attempt_at FROM monitor WHERE id = ?",
-                            [bean.id]
-                        );
-                        if (notificationState) {
-                            bean.last_notification_at = notificationState.last_notification_at;
-                            bean.lastNotificationAt = notificationState.last_notification_at;
-                            bean.last_notification_attempt_at = notificationState.last_notification_attempt_at;
-                            bean.lastNotificationAttemptAt = notificationState.last_notification_attempt_at;
-                        }
-                        await transaction.store(bean);
-                        await transaction.commit();
-                    } catch (error) {
-                        await transaction.rollback();
-                        throw error;
-                    }
+                    await store.store(bean);
 
                     if (removeGroupChildren) {
                         await Monitor.unlinkAllChildren(store, monitorID);
@@ -1697,15 +1678,30 @@ let needSetup = false;
  * @returns {Promise<void>}
  */
 async function updateMonitorNotification(monitorID, notificationIDList) {
-    await store.exec("DELETE FROM monitor_notification WHERE monitor_id = ? ", [monitorID]);
+    const selectedNotificationIDs = new Set(
+        Object.entries(notificationIDList || {})
+            .filter(([, selected]) => selected)
+            .map(([notificationID]) => Number(notificationID))
+            .filter((notificationID) => Number.isSafeInteger(notificationID) && notificationID > 0)
+    );
+    const existingRelations = await store.getAll(
+        "SELECT id, notification_id FROM monitor_notification WHERE monitor_id = ?",
+        [monitorID]
+    );
 
-    for (let notificationID in notificationIDList) {
-        if (notificationIDList[notificationID]) {
-            let relation = store.dispense("monitor_notification");
-            relation.monitor_id = monitorID;
-            relation.notification_id = notificationID;
-            await store.store(relation);
+    for (const relation of existingRelations) {
+        if (!selectedNotificationIDs.has(Number(relation.notification_id))) {
+            await store.exec("DELETE FROM monitor_notification WHERE id = ?", [relation.id]);
+        } else {
+            selectedNotificationIDs.delete(Number(relation.notification_id));
         }
+    }
+
+    for (const notificationID of selectedNotificationIDs) {
+        const relation = store.dispense("monitor_notification");
+        relation.monitor_id = monitorID;
+        relation.notification_id = notificationID;
+        await store.store(relation);
     }
 }
 

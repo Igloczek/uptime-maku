@@ -26,7 +26,6 @@ function monitor(overrides = {}) {
         type: "http",
         interval: 60,
         retryInterval: 20,
-        resendInterval: 0,
         maxretries: 0,
         timeout: 1,
         maxredirects: 10,
@@ -49,7 +48,6 @@ describe("monitor numeric validation", () => {
         const bean = monitor({
             interval: "60",
             retryInterval: "20",
-            resendInterval: "3",
             maxretries: "2",
             timeout: "0.25",
             maxredirects: "10",
@@ -62,7 +60,6 @@ describe("monitor numeric validation", () => {
         expect({
             interval: bean.interval,
             retryInterval: bean.retryInterval,
-            resendInterval: bean.resendInterval,
             maxretries: bean.maxretries,
             timeout: bean.timeout,
             maxredirects: bean.maxredirects,
@@ -71,7 +68,6 @@ describe("monitor numeric validation", () => {
         }).toEqual({
             interval: 60,
             retryInterval: 20,
-            resendInterval: 3,
             maxretries: 2,
             timeout: 0.25,
             maxredirects: 10,
@@ -158,11 +154,6 @@ describe("monitor numeric validation", () => {
                     undefined,
                 ],
                 `Retries must be an integer between 0 and ${MAX_MONITOR_RETRIES}`,
-            ],
-            [
-                "resendInterval",
-                ["", "bogus", NaN, Infinity, -Infinity, -1, 0.5, Number.MAX_SAFE_INTEGER + 1, null, undefined],
-                "Resend interval must be a non-negative integer number of minutes",
             ],
         ];
 
@@ -292,7 +283,6 @@ describe("monitor numeric validation", () => {
             type: "ping",
             interval: "bogus",
             retryInterval: 0,
-            resendInterval: Infinity,
             maxretries: Number.MAX_SAFE_INTEGER,
             timeout: 0.001,
             maxredirects: Number.MAX_SAFE_INTEGER,
@@ -308,7 +298,6 @@ describe("monitor numeric validation", () => {
         expect({
             interval: bean.interval,
             retryInterval: bean.retryInterval,
-            resendInterval: bean.resendInterval,
             maxretries: bean.maxretries,
             timeout: bean.timeout,
             maxredirects: bean.maxredirects,
@@ -320,7 +309,6 @@ describe("monitor numeric validation", () => {
         }).toEqual({
             interval: 1,
             retryInterval: 1,
-            resendInterval: 0,
             maxretries: 0,
             timeout: 0.8,
             maxredirects: 10,

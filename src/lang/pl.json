@@ -482,7 +482,7 @@
     "resendEveryXTimes": "Wysyłaj ponownie co {0} razy",
     "resendEveryXMinutes": "Wysyłaj ponownie co {0} minut",
     "resendDisabled": "Ponowne wysyłanie jest wyłączone",
-    "resendIntervalDescription": "Wyślij jedno powiadomienie po awarii monitora, a następnie ponawiaj je w tym odstępie aż do przywrócenia działania. Wpisz 0, aby wyłączyć ponawianie.",
+    "resendIntervalDescription": "Wyślij to powiadomienie po awarii monitora, a następnie ponawiaj je w tym odstępie aż do przywrócenia działania. Wpisz 0, aby wyłączyć ponawianie.",
     "Maintenance": "Konserwacja",
     "statusMaintenance": "Konserwacja",
     "Schedule maintenance": "Planowanie konserwacji",

@@ -1,22 +1,5 @@
 <template>
     <h2 class="mb-2">{{ $t("Notifications") }}</h2>
-    <div class="my-3">
-        <label for="resend-interval" class="form-label">
-            {{ $t("Resend notification while down") }}
-            <span v-if="monitor.resendInterval > 0">({{ $t("resendEveryXMinutes", [monitor.resendInterval]) }})</span>
-            <span v-else>({{ $t("resendDisabled") }})</span>
-        </label>
-        <input
-            id="resend-interval"
-            v-model="monitor.resendInterval"
-            type="number"
-            class="form-control"
-            required
-            min="0"
-            step="1"
-        />
-        <div class="form-text">{{ $t("resendIntervalDescription") }}</div>
-    </div>
     <p v-if="$root.notificationList.length === 0">
         {{ $t("Not available, please setup.") }}
     </p>

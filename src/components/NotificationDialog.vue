@@ -56,6 +56,26 @@
                         </Suspense>
 
                         <div class="mb-3 mt-4">
+                            <label for="notification-resend-interval" class="form-label">
+                                {{ $t("Resend notification while down") }}
+                                <span v-if="notification.resendInterval > 0">
+                                    ({{ $t("resendEveryXMinutes", [notification.resendInterval]) }})
+                                </span>
+                                <span v-else>({{ $t("resendDisabled") }})</span>
+                            </label>
+                            <input
+                                id="notification-resend-interval"
+                                v-model="notification.resendInterval"
+                                type="number"
+                                class="form-control"
+                                required
+                                min="0"
+                                step="1"
+                            />
+                            <div class="form-text">{{ $t("resendIntervalDescription") }}</div>
+                        </div>
+
+                        <div class="mb-3 mt-4">
                             <hr class="dropdown-divider mb-4" />
 
                             <div class="form-check form-switch">
@@ -214,6 +234,7 @@ export default {
                 for (let n of this.appStore.notificationList) {
                     if (n.id === notificationID) {
                         this.notification = JSON.parse(n.config);
+                        this.notification.resendInterval ??= 0;
 
                         // applyExisting is one time only, but it got saved to database previously. Workaround fix, set it to false here to deal with the problem.
                         this.notification.applyExisting = false;
@@ -227,6 +248,7 @@ export default {
                     name: "",
                     type: "telegram",
                     isDefault: false,
+                    resendInterval: 0,
                 };
             }
 

@@ -109,11 +109,19 @@ describe("Upstream Kuma upgrade", () => {
         ]);
         expect(
             await store.getAll(
-                `SELECT id, monitor_id, notification_id
+                `SELECT id, monitor_id, notification_id, last_notification_at, last_notification_attempt_at
                  FROM monitor_notification
                  ORDER BY id`
             )
-        ).toEqual([{ id: 4, monitor_id: 1, notification_id: 4 }]);
+        ).toEqual([
+            {
+                id: 4,
+                monitor_id: 1,
+                notification_id: 4,
+                last_notification_at: null,
+                last_notification_attempt_at: null,
+            },
+        ]);
 
         const domainExpiryDisabled = await store.getCell(
             "SELECT domain_expiry_notification FROM monitor WHERE name = ?",
@@ -155,7 +163,7 @@ describe("Resend interval migration", () => {
         fs.rmSync(dir, { recursive: true, force: true });
     });
 
-    test("converts legacy check counts to whole minutes exactly once", async () => {
+    test("moves legacy resend cadence to the notification configuration exactly once", async () => {
         const dbPath = path.join(dir, "kuma.db");
         store = new BunSQLiteRedbean();
         await store.connect({
@@ -165,10 +173,21 @@ describe("Resend interval migration", () => {
         });
 
         expect(await getSchemaVersion(store)).toBe(LATEST_SCHEMA_VERSION);
-        expect(await store.getCell("SELECT resend_interval FROM monitor WHERE id = 1")).toBe(11);
-        expect(await store.getCell("SELECT last_notification_at FROM monitor WHERE id = 1")).toBeNull();
+        expect(JSON.parse(await store.getCell("SELECT config FROM notification WHERE id = 4"))).toMatchObject({
+            resendInterval: 11,
+        });
+        expect(
+            await store.getAll("SELECT name FROM pragma_table_info('monitor') WHERE name IN (?, ?, ?)", [
+                "resend_interval",
+                "last_notification_at",
+                "last_notification_attempt_at",
+            ])
+        ).toEqual([]);
         expect(await store.getCell('SELECT value FROM setting WHERE "key" = ?', ["resend_interval_unit"])).toBe(
             "minutes"
+        );
+        expect(await store.getCell('SELECT value FROM setting WHERE "key" = ?', ["resend_interval_scope"])).toBe(
+            "notification"
         );
     });
 
@@ -205,13 +224,24 @@ describe("Resend interval migration", () => {
             testMode: true,
         });
 
-        expect(await store.getCell("SELECT resend_interval FROM monitor WHERE id = 1")).toBe(30);
-        expect(await store.getCell("SELECT last_notification_at FROM monitor WHERE id = 1")).toBe(
-            "2026-08-07 12:00:20.000"
-        );
-        expect(await store.getCell("SELECT last_notification_attempt_at FROM monitor WHERE id = 1")).toBe(
-            "2026-08-07 12:00:20.000"
-        );
+        expect(JSON.parse(await store.getCell("SELECT config FROM notification WHERE id = 4"))).toMatchObject({
+            resendInterval: 30,
+        });
+        expect(
+            await store.getRow(
+                "SELECT last_notification_at, last_notification_attempt_at FROM monitor_notification WHERE monitor_id = 1 AND notification_id = 4"
+            )
+        ).toEqual({
+            last_notification_at: "2026-08-07 12:00:20.000",
+            last_notification_attempt_at: "2026-08-07 12:00:20.000",
+        });
+        expect(
+            await store.getAll("SELECT name FROM pragma_table_info('monitor') WHERE name IN (?, ?, ?)", [
+                "resend_interval",
+                "last_notification_at",
+                "last_notification_attempt_at",
+            ])
+        ).toEqual([]);
     });
 });
 

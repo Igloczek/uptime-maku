@@ -142,4 +142,26 @@ describe("user resource storage injection", () => {
             await store.close();
         }
     });
+
+    test("stores and validates notification resend cadence in its config", async () => {
+        const store = await createStore();
+
+        try {
+            const notification = await Notification.save(
+                store,
+                { name: "mail", type: "smtp", isDefault: false, resendInterval: "30" },
+                null,
+                1
+            );
+            expect(JSON.parse(notification.config)).toMatchObject({ resendInterval: 30 });
+
+            for (const value of ["", "bogus", NaN, Infinity, -Infinity, -1, 0.5, Number.MAX_SAFE_INTEGER + 1, null]) {
+                await expect(
+                    Notification.save(store, { name: "mail", type: "smtp", resendInterval: value }, notification.id, 1)
+                ).rejects.toThrow("Resend interval must be a non-negative integer number of minutes");
+            }
+        } finally {
+            await store.close();
+        }
+    });
 });
