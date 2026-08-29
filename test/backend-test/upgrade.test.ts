@@ -191,6 +191,33 @@ describe("Resend interval migration", () => {
         );
     });
 
+    test("keeps repeats disabled when linked monitors had conflicting legacy settings", async () => {
+        const dbPath = path.join(dir, "kuma.db");
+        const db = new BunDatabase(dbPath, { create: true, strict: true });
+        try {
+            const result = db.run(
+                "INSERT INTO monitor (name, type, user_id, interval, resend_interval) VALUES ('Disabled monitor', 'http', 1, 20, 0)"
+            );
+            db.run("INSERT INTO monitor_notification (monitor_id, notification_id) VALUES (?, ?)", [
+                result.lastInsertRowid,
+                4,
+            ]);
+        } finally {
+            db.close();
+        }
+
+        store = new BunSQLiteRedbean();
+        await store.connect({
+            sqlitePath: dbPath,
+            templatePath: dbPath,
+            testMode: true,
+        });
+
+        expect(JSON.parse(await store.getCell("SELECT config FROM notification WHERE id = 4"))).not.toHaveProperty(
+            "resendInterval"
+        );
+    });
+
     test("preserves the configured push cadence and the latest legacy resend reset", async () => {
         const dbPath = path.join(dir, "kuma.db");
         const db = new BunDatabase(dbPath, { create: true, strict: true });

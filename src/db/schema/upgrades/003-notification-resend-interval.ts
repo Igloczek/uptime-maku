@@ -36,6 +36,7 @@ async function migrateNotificationResendIntervals(store: SQLiteTransaction) {
     }
 
     const legacyIntervals = new Map<number, number>();
+    const disabledNotificationIDs = new Set<number>();
     const relations = await store.getAll(
         `SELECT monitor_notification.notification_id, monitor.resend_interval
          FROM monitor_notification
@@ -45,6 +46,15 @@ async function migrateNotificationResendIntervals(store: SQLiteTransaction) {
     for (const relation of relations) {
         const row = relation as { notification_id: number; resend_interval: number };
         const interval = legacyInterval(row.resend_interval);
+        if (interval === 0) {
+            disabledNotificationIDs.add(row.notification_id);
+            continue;
+        }
+
+        if (disabledNotificationIDs.has(row.notification_id)) {
+            continue;
+        }
+
         if (interval > (legacyIntervals.get(row.notification_id) ?? 0)) {
             legacyIntervals.set(row.notification_id, interval);
         }
@@ -53,7 +63,7 @@ async function migrateNotificationResendIntervals(store: SQLiteTransaction) {
     const notifications = await store.getAll("SELECT id, config FROM notification");
     for (const notification of notifications) {
         const row = notification as { id: number; config: string | null };
-        const interval = legacyIntervals.get(row.id) ?? 0;
+        const interval = disabledNotificationIDs.has(row.id) ? 0 : (legacyIntervals.get(row.id) ?? 0);
         if (interval === 0) {
             continue;
         }
@@ -96,8 +106,8 @@ export async function upgrade003NotificationResendIntervalData(store: SQLiteTran
         return;
     }
 
-    // A notification can be attached to several monitors. Keep the largest legacy cadence so migration never
-    // increases the resend frequency for an existing configuration.
+    // A notification can be attached to several monitors. Keep repeats disabled when any linked monitor had
+    // them disabled; otherwise keep the largest legacy cadence so migration never increases its frequency.
     await migrateNotificationResendIntervals(store);
     await migrateNotificationResendState(store);
     await store.exec(
