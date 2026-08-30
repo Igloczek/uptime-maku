@@ -13,7 +13,7 @@ import { applySqlFile } from "@/db/schema/sql-utils";
 import { SCHEMA_VERSION_KEY } from "@/server/db-migrations";
 
 const projectRoot = path.join(import.meta.dirname, "../..");
-const kumaDbPath = path.join(projectRoot, "src/db/kuma.db");
+const kumaDbPath = path.join(projectRoot, "out/kuma.db");
 const currentSqlPath = path.join(projectRoot, "src/db/schema/current.sql");
 
 function getTables(db) {

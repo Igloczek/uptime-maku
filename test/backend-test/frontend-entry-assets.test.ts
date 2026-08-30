@@ -3,7 +3,7 @@ import {
     assertFrontendEntryAssets,
     getFrontendEntryAssets,
     type ViteManifest,
-} from "../../scripts/build/frontend-entry-assets.js";
+} from "@/server/frontend-entry-assets.js";
 
 const manifest: ViteManifest = {
     "entry.html": {

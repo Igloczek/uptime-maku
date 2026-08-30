@@ -22,7 +22,7 @@ const target = process.argv.find((arg) => arg.startsWith("--target="))?.slice("-
 console.log(target ? `Compiling binary (target=${target})...` : "Compiling binary...");
 
 const result = await Bun.build({
-    entrypoints: ["src/server/server.ts"],
+    entrypoints: ["out/embedded-assets-entry.ts"],
     compile: {
         outfile,
         ...(target ? { target } : {}),

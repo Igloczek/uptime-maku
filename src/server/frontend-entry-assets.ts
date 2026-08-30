@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 export type ViteManifestEntry = {
     css?: string[];
     file: string;
@@ -15,7 +18,15 @@ export type FrontendEntryAssets = {
     styles: string[];
 };
 
-function getFrontendEntryAssets(manifest: ViteManifest): FrontendEntryAssets {
+const EMPTY_FRONTEND_ENTRY_ASSETS: FrontendEntryAssets = {
+    mainScript: "",
+    modulePreloads: [],
+    styles: [],
+};
+
+let registeredFrontendEntryAssets: FrontendEntryAssets | null = null;
+
+function collectFrontendEntryAssets(manifest: ViteManifest): FrontendEntryAssets {
     const entries = Object.entries(manifest);
     const appEntry =
         entries.find(([, entry]) => entry.isEntry && entry.name === "app") ??
@@ -61,6 +72,30 @@ function getFrontendEntryAssets(manifest: ViteManifest): FrontendEntryAssets {
     };
 }
 
+function getFrontendEntryAssets(manifest?: ViteManifest): FrontendEntryAssets {
+    if (manifest) {
+        return collectFrontendEntryAssets(manifest);
+    }
+
+    if (registeredFrontendEntryAssets) {
+        return registeredFrontendEntryAssets;
+    }
+
+    const manifestPath = path.resolve("dist/.vite/manifest.json");
+    if (!fs.existsSync(manifestPath)) {
+        return EMPTY_FRONTEND_ENTRY_ASSETS;
+    }
+
+    registeredFrontendEntryAssets = collectFrontendEntryAssets(
+        JSON.parse(fs.readFileSync(manifestPath, "utf8")) as ViteManifest
+    );
+    return registeredFrontendEntryAssets;
+}
+
+function registerFrontendEntryAssets(assets: FrontendEntryAssets) {
+    registeredFrontendEntryAssets = assets;
+}
+
 function assertFrontendEntryAssets(entryAssets: FrontendEntryAssets, webAssets: Iterable<string>) {
     const embeddedAssets = new Set(webAssets);
     for (const asset of [entryAssets.mainScript, ...entryAssets.styles, ...entryAssets.modulePreloads]) {
@@ -70,4 +105,8 @@ function assertFrontendEntryAssets(entryAssets: FrontendEntryAssets, webAssets: 
     }
 }
 
-export { assertFrontendEntryAssets, getFrontendEntryAssets };
+export {
+    assertFrontendEntryAssets,
+    getFrontendEntryAssets,
+    registerFrontendEntryAssets,
+};

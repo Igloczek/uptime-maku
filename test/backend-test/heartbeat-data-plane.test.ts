@@ -44,7 +44,7 @@ async function createRuntime(name, now = dayjs.utc("2026-08-07T12:00:00Z")) {
     const store = new BunSQLiteRedbean();
     await store.connect({
         sqlitePath: path.join(directory, "kuma.db"),
-        templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+        templatePath: path.join(process.cwd(), "out/kuma.db"),
         testMode: true,
     });
     await store.exec("INSERT INTO user (id, username, active) VALUES (1, ?, 1)", [`${name}-owner`]);

@@ -409,7 +409,7 @@ async function pickFile(filePath, request, precompressed) {
 }
 
 async function pickEmbeddedFile(webPath, request, precompressed) {
-    const { hasEmbeddedAsset, readEmbeddedAsset } = await import("@/server/generated/embedded-assets");
+    const { hasEmbeddedAsset, readEmbeddedAsset } = await import("@/server/embedded-assets.js");
     if (precompressed && acceptsEncoding(request, "br") && hasEmbeddedAsset(`${webPath}.br`)) {
         const file = await readEmbeddedAsset(`${webPath}.br`);
         if (file) {

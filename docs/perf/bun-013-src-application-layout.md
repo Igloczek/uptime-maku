@@ -27,7 +27,7 @@ Date: 2026-06-29
 
 - `src/db/schema/current.sql` is the canonical SQLite DDL for fresh installs.
 - `src/db/schema/upgrades/` contains versioned one-time upgrades for upstream Uptime Kuma 2.x databases.
-- `src/db/kuma.db` is generated from `current.sql` via `bun run build:kuma-db`.
+- `out/kuma.db` is generated from `current.sql` via `bun run build:kuma-db`.
 
 ## Validation
 

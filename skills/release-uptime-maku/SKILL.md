@@ -34,7 +34,7 @@ Use `.github/workflows/release.yml` as the release implementation. Drive and ver
 ## 2. Prepare the version
 
 1. Update `package.json` to the exact release version.
-2. Run `bun run build` so the embedded frontend records the same version in `src/server/generated/embedded-assets.bundle.ts`.
+2. Run `bun run build` so the compiled binary embeds the frontend assets. Build staging is written to the ignored `out/` directory.
 3. Inspect the generated diff. Confirm both backend and frontend expose the intended version and that no stale version remains.
 4. Do not manually edit generated asset contents.
 

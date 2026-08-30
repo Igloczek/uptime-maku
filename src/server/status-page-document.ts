@@ -1,5 +1,5 @@
 import analytics from "@/server/analytics/analytics.js";
-import { frontendEntryAssets } from "@/server/generated/frontend-entry-assets.js";
+import { getFrontendEntryAssets } from "@/server/frontend-entry-assets.js";
 import { escapeHtml, escapeJsJson } from "@/util/escape.js";
 
 type StatusPageMetadata = {
@@ -215,7 +215,7 @@ function renderAppShell(assets: FrontendEntryAssets) {
 
 function renderHead({ statusPage, description, preloadData }: StatusPageDocumentInput & { description: string }) {
     const analyticsScripts = renderAnalytics(statusPage);
-    const appShell = renderAppShell(frontendEntryAssets);
+    const appShell = renderAppShell(getFrontendEntryAssets());
     const manifestPath = `/api/status-page/${encodeURIComponent(statusPage.slug)}/manifest.json`;
 
     return `<head>
@@ -247,7 +247,7 @@ function renderHead({ statusPage, description, preloadData }: StatusPageDocument
 async function renderStatusPageDocument({ statusPage, preloadData }: StatusPageDocumentInput) {
     const description = markdownToPlainText(statusPage.description);
     const head = renderHead({ statusPage, preloadData, description });
-    const { body } = renderAppShell(frontendEntryAssets);
+    const { body } = renderAppShell(getFrontendEntryAssets());
 
     return `<!DOCTYPE html>
 <html lang="en">
