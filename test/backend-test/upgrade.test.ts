@@ -70,7 +70,7 @@ describe("Upstream Kuma upgrade", () => {
         fs.rmSync(dir, { recursive: true, force: true });
     });
 
-    test("001-upstream-baseline migrates upstream Kuma data and sets schema version", async () => {
+    test("upgrades upstream Kuma data to the final schema version", async () => {
         expect(await getSchemaVersion(store)).toBe(LATEST_SCHEMA_VERSION);
 
         const schemaVersion = await store.getCell('SELECT value FROM setting WHERE "key" = ?', [SCHEMA_VERSION_KEY]);
@@ -163,7 +163,7 @@ describe("Resend interval migration", () => {
         fs.rmSync(dir, { recursive: true, force: true });
     });
 
-    test("moves legacy resend cadence to the notification configuration exactly once", async () => {
+    test("moves legacy resend cadence to the notification configuration", async () => {
         const dbPath = path.join(dir, "kuma.db");
         store = new BunSQLiteRedbean();
         await store.connect({
@@ -183,12 +183,6 @@ describe("Resend interval migration", () => {
                 "last_notification_attempt_at",
             ])
         ).toEqual([]);
-        expect(await store.getCell('SELECT value FROM setting WHERE "key" = ?', ["resend_interval_unit"])).toBe(
-            "minutes"
-        );
-        expect(await store.getCell('SELECT value FROM setting WHERE "key" = ?', ["resend_interval_scope"])).toBe(
-            "notification"
-        );
     });
 
     test("keeps repeats disabled when linked monitors had conflicting legacy settings", async () => {

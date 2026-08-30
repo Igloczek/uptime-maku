@@ -3,14 +3,9 @@ import {
     upgrade001UpstreamBaselineSchema,
 } from "../db/schema/upgrades/001-upstream-baseline.js";
 import {
-    upgrade002ResendIntervalMinutesData,
-    upgrade002ResendIntervalMinutesSchema,
-} from "@/db/schema/upgrades/002-resend-interval-minutes";
-import {
-    upgrade003NotificationResendIntervalData,
-    upgrade003NotificationResendIntervalSchema,
-} from "@/db/schema/upgrades/003-notification-resend-interval";
-import { upgrade004RemoveMonitorResendStateSchema } from "@/db/schema/upgrades/004-remove-monitor-resend-state";
+    upgrade002NotificationResendIntervalData,
+    upgrade002NotificationResendIntervalSchema,
+} from "@/db/schema/upgrades/002-notification-resend-interval";
 import { log } from "@/server/logger";
 
 export {
@@ -23,7 +18,7 @@ export {
 
 // Persisted by the first rewrite migration series. Keep the value for existing databases.
 export const SCHEMA_VERSION_KEY = "buna_schema_version";
-export const LATEST_SCHEMA_VERSION = 4;
+export const LATEST_SCHEMA_VERSION = 2;
 
 export interface SQLiteTransaction {
     exec(sql: string, params?: unknown[]): Promise<unknown>;
@@ -83,20 +78,9 @@ const upgrades: SchemaUpgrade[] = [
     },
     {
         version: 2,
-        name: "002-resend-interval-minutes",
-        runSchema: upgrade002ResendIntervalMinutesSchema,
-        runData: upgrade002ResendIntervalMinutesData,
-    },
-    {
-        version: 3,
-        name: "003-notification-resend-interval",
-        runSchema: upgrade003NotificationResendIntervalSchema,
-        runData: upgrade003NotificationResendIntervalData,
-    },
-    {
-        version: 4,
-        name: "004-remove-monitor-resend-state",
-        runSchema: upgrade004RemoveMonitorResendStateSchema,
+        name: "002-notification-resend-interval",
+        runSchema: upgrade002NotificationResendIntervalSchema,
+        runData: upgrade002NotificationResendIntervalData,
     },
 ];
 
