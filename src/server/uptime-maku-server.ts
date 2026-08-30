@@ -75,7 +75,7 @@ class UptimeMakuServer {
     async loadFrontendAssets() {
         try {
             if (isCompiledBinary()) {
-                const { getEmbeddedAssetRef } = await import("@/server/generated/embedded-assets");
+                const { getEmbeddedAssetRef } = await import("@/server/embedded-assets.js");
                 const embeddedIndex = getEmbeddedAssetRef("index.html");
                 if (!embeddedIndex) {
                     throw new Error("Embedded index.html is missing from the compiled binary.");

@@ -48,7 +48,7 @@ describe("Bun SQLite Redbean compatibility store", () => {
         store = new BunSQLiteRedbean();
         await store.connect({
             sqlitePath: path.join(dir, "kuma.db"),
-            templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+            templatePath: path.join(process.cwd(), "out/kuma.db"),
             testMode: true,
         });
     });
@@ -360,7 +360,7 @@ describe("Bun SQLite Redbean compatibility store", () => {
         store = createFaultingStore(faults);
         await store.connect({
             sqlitePath: path.join(dir, "kuma.db"),
-            templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+            templatePath: path.join(process.cwd(), "out/kuma.db"),
             testMode: true,
         });
         await store.exec("CREATE TABLE poison_probe (value TEXT NOT NULL)");
@@ -391,7 +391,7 @@ describe("Bun SQLite Redbean compatibility store", () => {
         await expect(
             store.connect({
                 sqlitePath: path.join(dir, "kuma.db"),
-                templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+                templatePath: path.join(process.cwd(), "out/kuma.db"),
                 testMode: true,
             })
         ).rejects.toThrow("quarantined");
@@ -411,7 +411,7 @@ describe("Bun SQLite Redbean compatibility store", () => {
         store = createFaultingStore(faults);
         await store.connect({
             sqlitePath: path.join(dir, "kuma.db"),
-            templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+            templatePath: path.join(process.cwd(), "out/kuma.db"),
             testMode: true,
         });
         await store.exec("CREATE TABLE rollback_poison_probe (value TEXT NOT NULL)");
@@ -451,7 +451,7 @@ describe("Bun SQLite Redbean compatibility store", () => {
             store = createFaultingStore(faults);
             await store.connect({
                 sqlitePath: path.join(dir, "kuma.db"),
-                templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+                templatePath: path.join(process.cwd(), "out/kuma.db"),
                 testMode: true,
             });
             const transaction = await store.begin();

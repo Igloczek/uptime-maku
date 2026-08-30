@@ -20,7 +20,7 @@ async function createStore() {
     const store = new BunSQLiteRedbean();
     await store.connect({
         sqlitePath: path.join(directory, "kuma.db"),
-        templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+        templatePath: path.join(process.cwd(), "out/kuma.db"),
         testMode: true,
     });
     return store;

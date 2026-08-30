@@ -11,15 +11,15 @@ import { log } from "@/server/logger";
 import { isDev } from "@/server/runtime-flags";
 import { runCommandSync } from "@/server/process-helper";
 import path from "path";
-import kumaDbTemplate from "@/db/kuma.db" with { type: "file" };
 import { defaultDataDir, isCompiledBinary } from "@/server/app-paths";
+import { getEmbeddedDatabaseTemplatePath } from "@/server/database-template.js";
 
 class Database {
     /**
      * Bootstrap database for SQLite
      * @type {string}
      */
-    static templatePath = "./src/db/kuma.db";
+    static templatePath = "./out/kuma.db";
 
     /**
      * Data Dir (Default: ./data)
@@ -59,7 +59,7 @@ class Database {
      * @returns {void}
      */
     static getTemplatePath() {
-        return isCompiledBinary() ? kumaDbTemplate : Database.templatePath;
+        return isCompiledBinary() ? getEmbeddedDatabaseTemplatePath() : Database.templatePath;
     }
 
     static initDataDir(args) {

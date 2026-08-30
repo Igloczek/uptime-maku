@@ -65,7 +65,7 @@ describe("Bun WebSocket client source", () => {
         const settings = new Settings(store);
         await store.connect({
             sqlitePath: path.join(directory, "kuma.db"),
-            templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+            templatePath: path.join(process.cwd(), "out/kuma.db"),
             testMode: true,
         });
 

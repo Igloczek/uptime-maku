@@ -1,5 +1,5 @@
 -- Uptime Maku canonical SQLite schema (Knex migration end-state).
--- Regenerate src/db/kuma.db via: bun scripts/build/generate-kuma-db.ts
+-- Regenerate out/kuma.db via: bun scripts/build/generate-kuma-db.ts
 
 PRAGMA foreign_keys = OFF;
 

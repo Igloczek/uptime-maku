@@ -7,7 +7,7 @@ import { SCHEMA_VERSION_KEY } from "@/server/db-migrations";
 
 const projectRoot = path.resolve(import.meta.dirname, "../..");
 const schemaPath = path.join(projectRoot, "src/db/schema/current.sql");
-const outputPath = path.join(projectRoot, "src/db/kuma.db");
+const outputPath = path.join(projectRoot, "out/kuma.db");
 
 function main() {
     const sql = fs.readFileSync(schemaPath, "utf8");
@@ -16,6 +16,7 @@ function main() {
         fs.unlinkSync(outputPath);
     }
 
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
     const db = new BunDatabase(outputPath, { create: true, strict: true });
     try {
         applySqlFile(db, sql);
@@ -25,7 +26,7 @@ function main() {
             .run(SCHEMA_VERSION_KEY, "1");
 
         if (!result || Number(result.changes) !== 1) {
-            throw new Error(`Failed to seed ${SCHEMA_VERSION_KEY} into generated kuma.db`);
+            throw new Error(`Failed to seed ${SCHEMA_VERSION_KEY} into generated out/kuma.db`);
         }
 
         const seeded = db

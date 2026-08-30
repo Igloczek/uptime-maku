@@ -44,7 +44,7 @@ export interface SQLiteStore {
  * - DML (GameDig rewrites, LINE Notify deletes, etc.) rolls back with the data transaction.
  * - SCHEMA_VERSION_KEY is only bumped after the data phase succeeds.
  * - On failure: restart to retry; schema steps are idempotent, data migrations re-run.
- * - For severely broken DBs: restore from backup or replace with a fresh src/db/kuma.db.
+ * - For severely broken DBs: restore from backup or replace with a fresh out/kuma.db.
  */
 
 interface SchemaUpgrade {

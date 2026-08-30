@@ -12,7 +12,7 @@ import { SCHEMA_VERSION_KEY, getSchemaVersion } from "@/server/db-migrations";
 const projectRoot = path.join(import.meta.dirname, "../..");
 const baselineFixturePath = path.join(import.meta.dirname, "fixtures/upstream-kuma-baseline.sql");
 const knexEndstateFixturePath = path.join(import.meta.dirname, "fixtures/upstream-kuma-knex-endstate.sql");
-const templatePath = path.join(projectRoot, "src/db/kuma.db");
+const templatePath = path.join(projectRoot, "out/kuma.db");
 const smtpConfig =
     '{"type":"smtp","smtpHost":"mail.example.invalid","smtpPort":2525,"smtpSecure":false,"smtpFrom":"sender@example.invalid","smtpTo":"recipient@example.invalid"}';
 

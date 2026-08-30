@@ -140,7 +140,7 @@ describe("maintenance validation and timer lifecycle", () => {
         try {
             await runtimeStore.connect({
                 sqlitePath: path.join(directory, "kuma.db"),
-                templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+                templatePath: path.join(process.cwd(), "out/kuma.db"),
                 testMode: true,
             });
             await runtimeStore.exec(
@@ -516,7 +516,7 @@ describe("maintenance validation and timer lifecycle", () => {
         try {
             await runtimeStore.connect({
                 sqlitePath,
-                templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+                templatePath: path.join(process.cwd(), "out/kuma.db"),
                 testMode: true,
             });
             await runtimeStore.exec("INSERT INTO user (id, username, password, active) VALUES (?, ?, ?, ?)", [
@@ -651,7 +651,7 @@ describe("maintenance validation and timer lifecycle", () => {
         const originalBeginForTest = runtimeStore.begin;
         await store.connect({
             sqlitePath: path.join(directory, "kuma.db"),
-            templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+            templatePath: path.join(process.cwd(), "out/kuma.db"),
             testMode: true,
         });
         runtimeStore.begin = async () => {
@@ -697,7 +697,7 @@ describe("maintenance validation and timer lifecycle", () => {
         const originalBeginForTest = runtimeStore.begin;
         await store.connect({
             sqlitePath: path.join(directory, "kuma.db"),
-            templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+            templatePath: path.join(process.cwd(), "out/kuma.db"),
             testMode: true,
         });
         await store.exec("INSERT INTO user (id, username, password, active) VALUES (1, 'owner', 'hash', 1)");
@@ -755,7 +755,7 @@ describe("maintenance validation and timer lifecycle", () => {
         const originalBeginForTest = runtimeStore.begin;
         await store.connect({
             sqlitePath: path.join(directory, "kuma.db"),
-            templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+            templatePath: path.join(process.cwd(), "out/kuma.db"),
             testMode: true,
         });
         const bean = Object.assign(new Maintenance(), {
@@ -856,12 +856,12 @@ describe("maintenance validation and timer lifecycle", () => {
             await Promise.all([
                 first.connect({
                     sqlitePath: path.join(directory, "first.db"),
-                    templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+                    templatePath: path.join(process.cwd(), "out/kuma.db"),
                     testMode: true,
                 }),
                 second.connect({
                     sqlitePath: path.join(directory, "second.db"),
-                    templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+                    templatePath: path.join(process.cwd(), "out/kuma.db"),
                     testMode: true,
                 }),
             ]);

@@ -16,13 +16,15 @@ import {
     STATUS_PAGE_PARTIAL_DOWN,
     STATUS_PAGE_MAINTENANCE,
 } from "@/constants";
-import { frontendEntryAssets } from "@/server/generated/frontend-entry-assets";
-import { hasEmbeddedAsset } from "@/server/generated/embedded-assets";
+import { hasEmbeddedAsset } from "@/server/embedded-assets.js";
+import { getFrontendEntryAssets } from "@/server/frontend-entry-assets.js";
 import { markdownToPlainText, renderStatusPageDocument } from "@/server/status-page-document";
 import { handleStatusPageRequest } from "@/server/routers/status-page-router";
 import "@/server/model-registry";
 
 dayjs.extend(utc);
+
+const frontendEntryAssets = getFrontendEntryAssets();
 
 describe("StatusPage", () => {
     describe("status page document", () => {
@@ -215,12 +217,12 @@ describe("StatusPage", () => {
             await Promise.all([
                 first.connect({
                     sqlitePath: path.join(dir, "first.db"),
-                    templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+                    templatePath: path.join(process.cwd(), "out/kuma.db"),
                     testMode: true,
                 }),
                 second.connect({
                     sqlitePath: path.join(dir, "second.db"),
-                    templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+                    templatePath: path.join(process.cwd(), "out/kuma.db"),
                     testMode: true,
                 }),
             ]);
@@ -257,7 +259,7 @@ describe("StatusPage", () => {
         const store = new BunSQLiteRedbean();
         await store.connect({
             sqlitePath: path.join(dir, "kuma.db"),
-            templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+            templatePath: path.join(process.cwd(), "out/kuma.db"),
             testMode: true,
         });
         await store.exec(
@@ -300,7 +302,7 @@ describe("StatusPage", () => {
         try {
             await store.connect({
                 sqlitePath: path.join(directory, "kuma.db"),
-                templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+                templatePath: path.join(process.cwd(), "out/kuma.db"),
                 testMode: true,
             });
             await store.exec(
@@ -409,7 +411,7 @@ describe("StatusPage", () => {
         try {
             await store.connect({
                 sqlitePath: path.join(directory, "kuma.db"),
-                templatePath: path.join(process.cwd(), "src/db/kuma.db"),
+                templatePath: path.join(process.cwd(), "out/kuma.db"),
                 testMode: true,
             });
             await store.exec(

@@ -30,8 +30,3 @@ extra/exe-builder/obj
 # Build source maps emitted at repo root
 server.js.map
 *.js.map
-
-# Build-generated source/runtime assets
-/src/db/kuma.db
-/src/server/generated/embedded-assets.bundle.ts
-/src/server/generated/frontend-entry-assets.ts
