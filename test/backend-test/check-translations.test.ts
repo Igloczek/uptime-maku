@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import fs from "node:fs/promises";
 
-const EN_PLACEHOLDER_CONTRACT_SHA256 = "0c35ecd8cd6425bfb09c65d4f95a8cac9cb343d6f6f5d98fdc3b2f302c396798";
+const EN_PLACEHOLDER_CONTRACT_SHA256 = "8408e1f4d0b539705cd05750122303345a6ebe8ab06a95c971053b884b48c58c";
 
 function extractParams(value) {
     if (typeof value !== "string") {

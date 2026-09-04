@@ -75,24 +75,31 @@ async function pushResponse(url, pushToken, server, store, heartbeatData, settin
             throw new Error(`Invalid ping value. Must be between 0 and ${MAX_PING_MS} ms.`);
         }
 
-        const monitor = await store.findOne("monitor", " push_token = ? AND active = 1 ", [pushToken]);
+        let monitor = await store.findOne("monitor", " push_token = ? AND active = 1 ", [pushToken]);
 
         if (!monitor) {
             throw new Error("Monitor not found or not active.");
         }
-        monitor.normalizeRuntimeConfig();
+        const monitorID = monitor.id;
 
-        await heartbeatData.runOperation(monitor.id, async () => {
-            const previousHeartbeat = await heartbeatData.latest(monitor.id);
+        await heartbeatData.runOperation(monitorID, async () => {
+            // Reload inside the per-monitor queue so concurrent push requests see the latest monitor configuration.
+            monitor = await store.findOne("monitor", " id = ? AND active = 1 ", [monitorID]);
+            if (!monitor) {
+                throw new Error("Monitor not found or not active.");
+            }
+            monitor.normalizeRuntimeConfig();
+
+            const previousHeartbeat = await heartbeatData.latest(monitorID);
 
             let isFirstBeat = true;
 
             let bean = store.dispense("heartbeat");
             bean.time = store.isoDateTimeMillis(dayjs.utc());
-            bean.monitor_id = monitor.id;
+            bean.monitor_id = monitorID;
             bean.ping = ping;
             bean.msg = msg;
-            bean.downCount = previousHeartbeat?.downCount || 0;
+            bean.downCount = 0;
 
             if (previousHeartbeat) {
                 isFirstBeat = false;
@@ -112,27 +119,27 @@ async function pushResponse(url, pushToken, server, store, heartbeatData, settin
 
             bean.important = Monitor.isImportantBeat(isFirstBeat, previousHeartbeat?.status, bean.status);
             let shouldNotify = false;
+            let notificationsToSend;
 
             if (Monitor.isImportantForNotification(isFirstBeat, previousHeartbeat?.status, bean.status)) {
-                bean.downCount = 0;
                 shouldNotify = true;
-            } else if (bean.status === DOWN && monitor.resendInterval > 0) {
-                ++bean.downCount;
-                if (bean.downCount >= monitor.resendInterval) {
-                    log.debug(
-                        "monitor",
-                        `[${monitor.name}] sendNotification again: Down Count: ${bean.downCount} | Resend Interval: ${monitor.resendInterval}`
-                    );
-                    shouldNotify = true;
-                    bean.downCount = 0;
-                }
+            } else if (bean.status === DOWN) {
+                notificationsToSend = await Monitor.getNotificationListForResend(monitor, store);
+            }
+
+            if (notificationsToSend?.length) {
+                log.debug(
+                    "monitor",
+                    `[${monitor.name}] sendNotification again`
+                );
+                shouldNotify = true;
             }
 
             await heartbeatData.commitWrite(bean);
 
             if (shouldNotify) {
                 log.debug("monitor", `[${monitor.name}] sendNotification`);
-                await Monitor.sendNotification(isFirstBeat, monitor, bean, store, server);
+                await Monitor.sendNotification(isFirstBeat, monitor, bean, store, server, notificationsToSend);
             }
 
             server.io.to(monitor.user_id).emit("heartbeat", bean.toJSON());

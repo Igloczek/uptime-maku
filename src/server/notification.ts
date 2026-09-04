@@ -3,6 +3,21 @@
 import { sendNotification } from "@/server/notification-provider-registry";
 import { commandExists } from "@/server/process-helper";
 
+function normalizeResendInterval(value) {
+    if (
+        (typeof value !== "number" && typeof value !== "string") ||
+        (typeof value === "string" && value.trim() === "")
+    ) {
+        throw new Error("Resend interval must be a non-negative integer number of minutes");
+    }
+
+    const interval = Number(value);
+    if (!Number.isSafeInteger(interval) || interval < 0) {
+        throw new Error("Resend interval must be a non-negative integer number of minutes");
+    }
+    return interval;
+}
+
 class Notification {
     /**
      * Send a notification
@@ -41,6 +56,9 @@ class Notification {
         // applyExisting is one time only, don't save it to database.
         const applyExisting = notification.applyExisting || false;
         notification.applyExisting = false;
+        notification.resendInterval = normalizeResendInterval(
+            notification.resendInterval === undefined ? 0 : notification.resendInterval
+        );
 
         bean.name = notification.name;
         bean.user_id = userID;

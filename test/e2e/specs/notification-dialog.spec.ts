@@ -154,6 +154,14 @@ test.describe("Notification dialog", () => {
             }
         }
 
+        const resendInterval = page.locator("#notification-resend-interval");
+        await expect(resendInterval).toBeVisible();
+        await expect(resendInterval).toHaveAttribute("min", "0");
+        await expect(resendInterval).toHaveAttribute("step", "1");
+        await resendInterval.fill("10");
+        expect(await resendInterval.evaluate((input) => input.checkValidity())).toBe(true);
+        await expect(page.getByText("Resend every 10 minutes")).toBeVisible();
+
         expect(pageErrors).toEqual([]);
     });
 

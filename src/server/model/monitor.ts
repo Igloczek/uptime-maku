@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import httpClient from "@/server/http-client";
 import { Prometheus } from "@/server/prometheus";
 import { log } from "@/server/logger";
@@ -49,6 +50,8 @@ import { writeErrorLog } from "@/server/error-log";
 const brotliCompress = promisify(zlib.brotliCompress);
 const version = packageJson.version;
 let rootCertificates;
+
+dayjs.extend(utc);
 
 function normalizeNumber(value, { error, integer = false, safeInteger = false, min, max }) {
     if (
@@ -113,11 +116,6 @@ class Monitor extends BeanModel {
             integer: true,
             min: MIN_INTERVAL_SECOND,
             max: MAX_INTERVAL_SECOND,
-        });
-        this.resendInterval = runtimeNumber(this.resendInterval, 0, {
-            safeInteger: true,
-            min: 0,
-            max: Number.MAX_SAFE_INTEGER,
         });
         this.maxretries = runtimeNumber(this.maxretries, 0, {
             safeInteger: true,
@@ -251,7 +249,6 @@ class Monitor extends BeanModel {
             interval: this.interval,
             retryInterval: this.retryInterval,
             retryOnlyOnStatusCodeFailure: Boolean(this.retry_only_on_status_code_failure),
-            resendInterval: this.resendInterval,
             keyword: this.keyword,
             invertKeyword: this.isInvertKeyword(),
             expiryNotification: this.isEnabledExpiryNotification(),
@@ -1103,6 +1100,8 @@ class Monitor extends BeanModel {
                     log.debug("monitor", `[${this.name}] Check isImportant`);
                     const isImportant = Monitor.isImportantBeat(isFirstBeat, previousBeat?.status, bean.status);
                     let shouldNotify = false;
+                    let notificationsToSend;
+                    bean.downCount = 0;
 
                     if (isImportant) {
                         bean.important = true;
@@ -1114,19 +1113,17 @@ class Monitor extends BeanModel {
                                 `[${this.name}] will not sendNotification because it is (or was) under maintenance`
                             );
                         }
-                        bean.downCount = 0;
                     } else {
                         bean.important = false;
-                        if (bean.status === DOWN && this.resendInterval > 0) {
-                            ++bean.downCount;
-                            if (bean.downCount >= this.resendInterval) {
-                                log.debug(
-                                    "monitor",
-                                    `[${this.name}] sendNotification again: Down Count: ${bean.downCount} | Resend Interval: ${this.resendInterval}`
-                                );
-                                shouldNotify = true;
-                                bean.downCount = 0;
-                            }
+                        if (bean.status === DOWN) {
+                            notificationsToSend = await Monitor.getNotificationListForResend(this, heartbeatData.store);
+                        }
+                        if (notificationsToSend?.length) {
+                            log.debug(
+                                "monitor",
+                                `[${this.name}] sendNotification again`
+                            );
+                            shouldNotify = true;
                         }
                     }
 
@@ -1151,7 +1148,7 @@ class Monitor extends BeanModel {
                     } else {
                         log.warn(
                             "monitor",
-                            `Monitor #${this.id} '${this.name}': Failing: ${bean.msg} | Interval: ${beatInterval} seconds | Type: ${this.type} | Down Count: ${bean.downCount} | Resend Interval: ${this.resendInterval}`
+                            `Monitor #${this.id} '${this.name}': Failing: ${bean.msg} | Interval: ${beatInterval} seconds | Type: ${this.type}`
                         );
                     }
 
@@ -1162,7 +1159,7 @@ class Monitor extends BeanModel {
 
                     if (shouldNotify) {
                         log.debug("monitor", `[${this.name}] sendNotification`);
-                        await Monitor.sendNotification(isFirstBeat, this, bean, heartbeatData.store, server);
+                        await Monitor.sendNotification(isFirstBeat, this, bean, heartbeatData.store, server, notificationsToSend);
                     }
 
                     if (isImportant) {
@@ -1589,6 +1586,92 @@ class Monitor extends BeanModel {
     }
 
     /**
+     * Check whether a notification is due while its monitor remains down.
+     * The interval is configured in the notification config and measured from the last attempt.
+     * @param {object} notification Notification relation and config
+     * @param {number|Date|object} now Current time, useful for deterministic tests
+     * @returns {boolean} True when a resend is due
+     */
+    static isResendDue(notification, now = dayjs.utc()) {
+        let config = notification;
+        if (typeof notification?.config === "string") {
+            try {
+                config = JSON.parse(notification.config);
+            } catch {
+                return false;
+            }
+        }
+
+        const resendInterval = Number(
+            notification?.resendInterval ??
+                notification?.resend_interval ??
+                config?.resendInterval ??
+                config?.resend_interval
+        );
+        if (!Number.isSafeInteger(resendInterval) || resendInterval <= 0) {
+            return false;
+        }
+
+        const lastNotificationAt =
+            notification?.lastNotificationAttemptAt ??
+            notification?.last_notification_attempt_at ??
+            notification?.lastNotificationAt ??
+            notification?.last_notification_at;
+        if (!lastNotificationAt) {
+            return false;
+        }
+
+        const lastNotificationTime = dayjs.utc(lastNotificationAt).valueOf();
+        const currentTime = dayjs.utc(now).valueOf();
+        const intervalMilliseconds = resendInterval * 60 * 1000;
+
+        return (
+            Number.isFinite(lastNotificationTime) &&
+            Number.isFinite(currentTime) &&
+            currentTime - lastNotificationTime >= intervalMilliseconds
+        );
+    }
+
+    /**
+     * Persist the timestamp after a notification attempt for one monitor/notification relation.
+     * @param {object} notification Notification relation
+     * @param {object} store SQLite store
+     * @returns {Promise<void>}
+     */
+    static async recordNotificationAttempt(notification, store, sent) {
+        const timestamp = store.isoDateTimeMillis(dayjs.utc());
+        const relationID = notification.monitor_notification_id ?? notification.monitorNotificationId;
+        const where = relationID
+            ? ["id = ?", [relationID]]
+            : ["monitor_id = ? AND notification_id = ?", [notification.monitor_id, notification.notification_id]];
+
+        if (!relationID && (notification.monitor_id === undefined || notification.notification_id === undefined)) {
+            return;
+        }
+
+        if (sent) {
+            await store.exec(
+                `UPDATE monitor_notification
+                 SET last_notification_at = ?, last_notification_attempt_at = ?
+                 WHERE ${where[0]}`,
+                [timestamp, timestamp, ...where[1]]
+            );
+        } else {
+            await store.exec(`UPDATE monitor_notification SET last_notification_attempt_at = ? WHERE ${where[0]}`, [
+                timestamp,
+                ...where[1],
+            ]);
+        }
+
+        notification.last_notification_attempt_at = timestamp;
+        notification.lastNotificationAttemptAt = timestamp;
+        if (sent) {
+            notification.last_notification_at = timestamp;
+            notification.lastNotificationAt = timestamp;
+        }
+    }
+
+    /**
      * Is this beat important for notifications?
      * @param {boolean} isFirstBeat Is this the first beat of this monitor?
      * @param {const} previousBeatStatus Status of the previous beat
@@ -1625,76 +1708,97 @@ class Monitor extends BeanModel {
      * @param {boolean} isFirstBeat Is this beat the first of this monitor?
      * @param {Monitor} monitor The monitor to send a notification about
      * @param {import("@/server/model/heartbeat")} bean Status information about monitor
-     * @returns {Promise<void>}
+     * @param {object[]|undefined} notificationsToSend Optional pre-filtered notification relations
+     * @returns {Promise<{attempted: boolean, sent: boolean}>} Notification delivery result
      */
-    static async sendNotification(isFirstBeat, monitor, bean, store, server) {
-        if (!isFirstBeat || bean.status === DOWN) {
-            const notificationList = await Monitor.getNotificationList(monitor, store);
+    static async sendNotification(isFirstBeat, monitor, bean, store, server, notificationsToSend) {
+        if (isFirstBeat && bean.status !== DOWN) {
+            return { attempted: false, sent: false };
+        }
 
-            let text;
-            if (bean.status === UP) {
-                text = "✅ Up";
-            } else {
-                text = "🔴 Down";
-            }
+        const notificationList = notificationsToSend ?? ((await Monitor.getNotificationList(monitor, store)) || []);
+        if (notificationList.length === 0) {
+            return { attempted: false, sent: false };
+        }
 
-            let msg = `[${monitor.name}] [${text}] ${bean.msg}`;
+        let text;
+        if (bean.status === UP) {
+            text = "✅ Up";
+        } else {
+            text = "🔴 Down";
+        }
 
-            const heartbeatJSON = await bean.toJSONAsync({ decodeResponse: true });
-            const monitorData = [{ id: monitor.id, active: monitor.active, name: monitor.name }];
-            const preloadData = await Monitor.preparePreloadData(store, monitorData, server);
-            // Prevent if the msg is undefined, notifications such as Discord cannot send out.
-            if (!heartbeatJSON["msg"]) {
-                heartbeatJSON["msg"] = "N/A";
-            }
+        let msg = `[${monitor.name}] [${text}] ${bean.msg}`;
 
-            // Also provide the time in server timezone
-            heartbeatJSON["timezone"] = await server.getTimezone();
-            heartbeatJSON["timezoneOffset"] = server.getTimezoneOffset();
-            heartbeatJSON["localDateTime"] = dayjs
-                .utc(heartbeatJSON["time"])
-                .tz(heartbeatJSON["timezone"])
-                .format(SQL_DATETIME_FORMAT);
+        const heartbeatJSON = await bean.toJSONAsync({ decodeResponse: true });
+        const monitorData = [{ id: monitor.id, active: monitor.active, name: monitor.name }];
+        const preloadData = await Monitor.preparePreloadData(store, monitorData, server);
+        // Prevent if the msg is undefined, notifications such as Discord cannot send out.
+        if (!heartbeatJSON["msg"]) {
+            heartbeatJSON["msg"] = "N/A";
+        }
 
-            // Calculate downtime tracking information when service comes back up
-            // This makes downtime information available to all notification providers
-            if (bean.status === UP && monitor.id) {
-                try {
-                    // Filter by important = 1 to get the state transition heartbeat (e.g. UP→DOWN),
-                    // not the most recent DOWN heartbeat which would be the last check before recovery.
-                    const lastDownHeartbeat = await store.getRow(
-                        "SELECT time FROM heartbeat WHERE monitor_id = ? AND status = ? AND important = 1 ORDER BY time DESC LIMIT 1",
-                        [monitor.id, DOWN]
-                    );
+        // Also provide the time in server timezone
+        heartbeatJSON["timezone"] = await server.getTimezone();
+        heartbeatJSON["timezoneOffset"] = server.getTimezoneOffset();
+        heartbeatJSON["localDateTime"] = dayjs
+            .utc(heartbeatJSON["time"])
+            .tz(heartbeatJSON["timezone"])
+            .format(SQL_DATETIME_FORMAT);
 
-                    if (lastDownHeartbeat && lastDownHeartbeat.time) {
-                        heartbeatJSON["lastDownTime"] = lastDownHeartbeat.time;
-                    }
-                } catch (error) {
-                    // If we can't calculate downtime, just continue without it
-                    // Silently fail to avoid disrupting notification sending
-                    log.debug(
-                        "monitor",
-                        `[${monitor.name}] Could not calculate downtime information: ${error.message}`
-                    );
+        // Calculate downtime tracking information when service comes back up
+        // This makes downtime information available to all notification providers
+        if (bean.status === UP && monitor.id) {
+            try {
+                // Filter by important = 1 to get the state transition heartbeat (e.g. UP→DOWN),
+                // not the most recent DOWN heartbeat which would be the last check before recovery.
+                const lastDownHeartbeat = await store.getRow(
+                    "SELECT time FROM heartbeat WHERE monitor_id = ? AND status = ? AND important = 1 ORDER BY time DESC LIMIT 1",
+                    [monitor.id, DOWN]
+                );
+
+                if (lastDownHeartbeat && lastDownHeartbeat.time) {
+                    heartbeatJSON["lastDownTime"] = lastDownHeartbeat.time;
                 }
-            }
-
-            for (let notification of notificationList) {
-                try {
-                    await Notification.send(
-                        server.notificationProviderRegistry,
-                        JSON.parse(notification.config),
-                        msg,
-                        monitor.toJSON(preloadData, false),
-                        heartbeatJSON
-                    );
-                } catch (e) {
-                    log.error("monitor", "Cannot send notification to " + notification.name);
-                    log.error("monitor", e);
-                }
+            } catch (error) {
+                // If we can't calculate downtime, just continue without it
+                // Silently fail to avoid disrupting notification sending
+                log.debug("monitor", `[${monitor.name}] Could not calculate downtime information: ${error.message}`);
             }
         }
+
+        let sent = false;
+        for (let notification of notificationList) {
+            let notificationSent = false;
+            try {
+                await Notification.send(
+                    server.notificationProviderRegistry,
+                    JSON.parse(notification.config),
+                    msg,
+                    monitor.toJSON(preloadData, false),
+                    heartbeatJSON
+                );
+                notificationSent = true;
+            } catch (e) {
+                log.error("monitor", "Cannot send notification to " + notification.name);
+                log.error("monitor", e);
+            }
+
+            await Monitor.recordNotificationAttempt(notification, store, notificationSent);
+            sent ||= notificationSent;
+        }
+
+        return { attempted: true, sent };
+    }
+
+    /**
+     * Get notification relations whose configured resend interval has elapsed.
+     * @param {Monitor} monitor Monitor to check
+     * @returns {Promise<LooseObject<any>[]>} Due notification relations
+     */
+    static async getNotificationListForResend(monitor, store, now = dayjs.utc()) {
+        const notificationList = (await Monitor.getNotificationList(monitor, store)) || [];
+        return notificationList.filter((notification) => Monitor.isResendDue(notification, now));
     }
 
     /**
@@ -1704,7 +1808,12 @@ class Monitor extends BeanModel {
      */
     static async getNotificationList(monitor, store) {
         let notificationList = await store.getAll(
-            "SELECT notification.* FROM notification, monitor_notification WHERE monitor_id = ? AND monitor_notification.notification_id = notification.id ",
+            `SELECT notification.*, monitor_notification.id AS monitor_notification_id,
+                    monitor_notification.last_notification_at,
+                    monitor_notification.last_notification_attempt_at
+             FROM notification
+             JOIN monitor_notification ON monitor_notification.notification_id = notification.id
+             WHERE monitor_notification.monitor_id = ?`,
             [monitor.id]
         );
         return notificationList;
@@ -1829,12 +1938,6 @@ class Monitor extends BeanModel {
             integer: true,
             min: MIN_INTERVAL_SECOND,
             max: MAX_INTERVAL_SECOND,
-        });
-        this.resendInterval = normalizeNumber(this.resendInterval, {
-            error: "Resend interval must be a non-negative safe integer",
-            safeInteger: true,
-            min: 0,
-            max: Number.MAX_SAFE_INTEGER,
         });
         this.maxretries = normalizeNumber(this.maxretries, {
             error: `Retries must be an integer between 0 and ${MAX_MONITOR_RETRIES}`,

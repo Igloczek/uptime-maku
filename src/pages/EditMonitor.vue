@@ -1847,7 +1847,6 @@ const monitorDefaults = {
     interval: 60,
     humanReadableInterval: formatDuration(60),
     retryInterval: 60,
-    resendInterval: 0,
     maxretries: 0,
     retryOnlyOnStatusCodeFailure: false,
     notificationIDList: {},

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Database as BunDatabase } from "bun:sqlite";
 import { applySqlFile } from "@/db/schema/sql-utils";
-import { SCHEMA_VERSION_KEY } from "@/server/db-migrations";
+import { LATEST_SCHEMA_VERSION, SCHEMA_VERSION_KEY } from "@/server/db-migrations";
 
 const projectRoot = path.resolve(import.meta.dirname, "../..");
 const schemaPath = path.join(projectRoot, "src/db/schema/current.sql");
@@ -23,17 +23,15 @@ function main() {
 
         const result = db
             .query('INSERT INTO setting ("key", value) VALUES (?, ?)')
-            .run(SCHEMA_VERSION_KEY, "1");
+            .run(SCHEMA_VERSION_KEY, String(LATEST_SCHEMA_VERSION));
 
         if (!result || Number(result.changes) !== 1) {
             throw new Error(`Failed to seed ${SCHEMA_VERSION_KEY} into generated out/kuma.db`);
         }
 
-        const seeded = db
-            .query('SELECT value FROM setting WHERE "key" = ?')
-            .get(SCHEMA_VERSION_KEY)?.value;
-        if (seeded !== "1") {
-            throw new Error(`Expected ${SCHEMA_VERSION_KEY}=1 after generation, got ${seeded}`);
+        const seeded = db.query('SELECT value FROM setting WHERE "key" = ?').get(SCHEMA_VERSION_KEY)?.value;
+        if (seeded !== String(LATEST_SCHEMA_VERSION)) {
+            throw new Error(`Expected ${SCHEMA_VERSION_KEY}=${LATEST_SCHEMA_VERSION} after generation, got ${seeded}`);
         }
     } finally {
         db.close();

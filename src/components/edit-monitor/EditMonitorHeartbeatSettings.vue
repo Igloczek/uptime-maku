@@ -113,22 +113,6 @@
             {{ $t("pingGlobalTimeoutDescription") }}
         </div>
     </div>
-    <div class="my-3">
-        <label for="resend-interval" class="form-label">
-            {{ $t("Resend Notification if Down X times consecutively") }}
-            <span v-if="monitor.resendInterval > 0">({{ $t("resendEveryXTimes", [monitor.resendInterval]) }})</span>
-            <span v-else>({{ $t("resendDisabled") }})</span>
-        </label>
-        <input
-            id="resend-interval"
-            v-model="monitor.resendInterval"
-            type="number"
-            class="form-control"
-            required
-            min="0"
-            step="1"
-        />
-    </div>
 </template>
 
 <script>

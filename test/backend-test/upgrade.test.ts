@@ -7,7 +7,7 @@ import path from "node:path";
 import { Database as BunDatabase } from "bun:sqlite";
 import { applySqlFile } from "@/db/schema/sql-utils";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
-import { SCHEMA_VERSION_KEY, getSchemaVersion } from "@/server/db-migrations";
+import { LATEST_SCHEMA_VERSION, SCHEMA_VERSION_KEY, getSchemaVersion } from "@/server/db-migrations";
 
 const projectRoot = path.join(import.meta.dirname, "../..");
 const baselineFixturePath = path.join(import.meta.dirname, "fixtures/upstream-kuma-baseline.sql");
@@ -70,13 +70,11 @@ describe("Upstream Kuma upgrade", () => {
         fs.rmSync(dir, { recursive: true, force: true });
     });
 
-    test("001-upstream-baseline migrates upstream Kuma data and sets schema version", async () => {
-        expect(await getSchemaVersion(store)).toBe(1);
+    test("upgrades upstream Kuma data to the final schema version", async () => {
+        expect(await getSchemaVersion(store)).toBe(LATEST_SCHEMA_VERSION);
 
-        const schemaVersion = await store.getCell('SELECT value FROM setting WHERE "key" = ?', [
-            SCHEMA_VERSION_KEY,
-        ]);
-        expect(schemaVersion).toBe("1");
+        const schemaVersion = await store.getCell('SELECT value FROM setting WHERE "key" = ?', [SCHEMA_VERSION_KEY]);
+        expect(schemaVersion).toBe(String(LATEST_SCHEMA_VERSION));
 
         const gamedigGame = await store.getCell("SELECT game FROM monitor WHERE name = ?", ["GameDig TF2"]);
         expect(gamedigGame).toBe("teamfortress2");
@@ -111,11 +109,19 @@ describe("Upstream Kuma upgrade", () => {
         ]);
         expect(
             await store.getAll(
-                `SELECT id, monitor_id, notification_id
+                `SELECT id, monitor_id, notification_id, last_notification_at, last_notification_attempt_at
                  FROM monitor_notification
                  ORDER BY id`
             )
-        ).toEqual([{ id: 4, monitor_id: 1, notification_id: 4 }]);
+        ).toEqual([
+            {
+                id: 4,
+                monitor_id: 1,
+                notification_id: 4,
+                last_notification_at: null,
+                last_notification_attempt_at: null,
+            },
+        ]);
 
         const domainExpiryDisabled = await store.getCell(
             "SELECT domain_expiry_notification FROM monitor WHERE name = ?",
@@ -128,6 +134,135 @@ describe("Upstream Kuma upgrade", () => {
             ["Unsupported domain expiry"]
         );
         expect(Number(parsedDomainExpiryDisabled)).toBe(0);
+    });
+});
+
+describe("Resend interval migration", () => {
+    let dir;
+    let store;
+
+    beforeEach(() => {
+        dir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-resend-migration-"));
+        const dbPath = path.join(dir, "kuma.db");
+        loadSqlFixture(dbPath, fs.readFileSync(baselineFixturePath, "utf8"));
+
+        const db = new BunDatabase(dbPath, { create: true, strict: true });
+        try {
+            db.run("ALTER TABLE monitor ADD COLUMN resend_interval INTEGER NOT NULL DEFAULT 0");
+            db.run("UPDATE monitor SET interval = 20, resend_interval = 31 WHERE id = 1");
+            db.run('INSERT INTO setting ("key", value) VALUES (?, ?)', [SCHEMA_VERSION_KEY, "1"]);
+        } finally {
+            db.close();
+        }
+    });
+
+    afterEach(async () => {
+        if (store) {
+            await store.close();
+        }
+        fs.rmSync(dir, { recursive: true, force: true });
+    });
+
+    test("moves legacy resend cadence to the notification configuration", async () => {
+        const dbPath = path.join(dir, "kuma.db");
+        store = new BunSQLiteRedbean();
+        await store.connect({
+            sqlitePath: dbPath,
+            templatePath: dbPath,
+            testMode: true,
+        });
+
+        expect(await getSchemaVersion(store)).toBe(LATEST_SCHEMA_VERSION);
+        expect(JSON.parse(await store.getCell("SELECT config FROM notification WHERE id = 4"))).toMatchObject({
+            resendInterval: 11,
+        });
+        expect(
+            await store.getAll("SELECT name FROM pragma_table_info('monitor') WHERE name IN (?, ?, ?)", [
+                "resend_interval",
+                "last_notification_at",
+                "last_notification_attempt_at",
+            ])
+        ).toEqual([]);
+    });
+
+    test("keeps repeats disabled when linked monitors had conflicting legacy settings", async () => {
+        const dbPath = path.join(dir, "kuma.db");
+        const db = new BunDatabase(dbPath, { create: true, strict: true });
+        try {
+            const result = db.run(
+                "INSERT INTO monitor (name, type, user_id, interval, resend_interval) VALUES ('Disabled monitor', 'http', 1, 20, 0)"
+            );
+            db.run("INSERT INTO monitor_notification (monitor_id, notification_id) VALUES (?, ?)", [
+                result.lastInsertRowid,
+                4,
+            ]);
+        } finally {
+            db.close();
+        }
+
+        store = new BunSQLiteRedbean();
+        await store.connect({
+            sqlitePath: dbPath,
+            templatePath: dbPath,
+            testMode: true,
+        });
+
+        expect(JSON.parse(await store.getCell("SELECT config FROM notification WHERE id = 4"))).not.toHaveProperty(
+            "resendInterval"
+        );
+    });
+
+    test("preserves the configured push cadence and the latest legacy resend reset", async () => {
+        const dbPath = path.join(dir, "kuma.db");
+        const db = new BunDatabase(dbPath, { create: true, strict: true });
+        try {
+            db.run("UPDATE monitor SET type = 'push', interval = 300, resend_interval = 6 WHERE id = 1");
+            db.run(`CREATE TABLE heartbeat (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                monitor_id INTEGER NOT NULL,
+                status INTEGER NOT NULL,
+                time DATETIME NOT NULL,
+                important BOOLEAN NOT NULL DEFAULT 0,
+                down_count INTEGER NOT NULL DEFAULT 0
+            )`);
+            db.run("INSERT INTO heartbeat (monitor_id, status, time, important, down_count) VALUES (1, 0, ?, 1, 0)", [
+                "2026-08-07 12:00:00.000",
+            ]);
+            db.run("INSERT INTO heartbeat (monitor_id, status, time, important, down_count) VALUES (1, 0, ?, 0, 1)", [
+                "2026-08-07 12:00:10.000",
+            ]);
+            db.run("INSERT INTO heartbeat (monitor_id, status, time, important, down_count) VALUES (1, 0, ?, 0, 0)", [
+                "2026-08-07 12:00:20.000",
+            ]);
+        } finally {
+            db.close();
+        }
+
+        store = new BunSQLiteRedbean();
+        await store.connect({
+            sqlitePath: dbPath,
+            templatePath: dbPath,
+            testMode: true,
+        });
+
+        expect(JSON.parse(await store.getCell("SELECT config FROM notification WHERE id = 4"))).toMatchObject({
+            resendInterval: 30,
+        });
+        expect(
+            await store.getRow(
+                "SELECT last_notification_at, last_notification_attempt_at FROM monitor_notification WHERE monitor_id = 1 AND notification_id = 4"
+            )
+        ).toEqual({
+            last_notification_at: "2026-08-07 12:00:20.000",
+            last_notification_attempt_at: "2026-08-07 12:00:20.000",
+        });
+        expect(
+            await store.getAll("SELECT name FROM pragma_table_info('monitor') WHERE name IN (?, ?, ?)", [
+                "resend_interval",
+                "last_notification_at",
+                "last_notification_attempt_at",
+            ])
+        ).toEqual([]);
     });
 });
 
@@ -157,7 +292,7 @@ describe("Upstream Kuma Knex end-state", () => {
     });
 
     test("001-upstream-baseline runs when marker columns exist but the schema-version setting is absent", async () => {
-        expect(await getSchemaVersion(store)).toBe(1);
+        expect(await getSchemaVersion(store)).toBe(LATEST_SCHEMA_VERSION);
 
         const gamedigGame = await store.getCell("SELECT game FROM monitor WHERE name = ?", ["GameDig TF2"]);
         expect(gamedigGame).toBe("teamfortress2");
@@ -198,7 +333,7 @@ describe("Fresh Uptime Maku template", () => {
         fs.copyFileSync(templatePath, dbPath);
 
         const beforeVersion = readSettingValue(dbPath, SCHEMA_VERSION_KEY);
-        expect(beforeVersion).toBe("1");
+        expect(beforeVersion).toBe(String(LATEST_SCHEMA_VERSION));
 
         const beforeUserCount = readUserCount(dbPath);
 
@@ -209,7 +344,7 @@ describe("Fresh Uptime Maku template", () => {
             testMode: true,
         });
 
-        expect(await getSchemaVersion(store)).toBe(1);
+        expect(await getSchemaVersion(store)).toBe(LATEST_SCHEMA_VERSION);
         expect(await store.count("user")).toBe(beforeUserCount);
         expect(await store.count("notification")).toBe(0);
     });

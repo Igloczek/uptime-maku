@@ -21,7 +21,7 @@ function scheduleInProcessCron(interval: string, callback: JobCallback, timezone
         return Bun.cron(interval, callback);
     }
 
-    // @types/bun 1.3.x does not yet declare the 1.4 `{ tz }` overload.
+    // The published @types/bun definitions do not yet declare the 1.4 `{ tz }` overload.
     return (Bun.cron as (schedule: string, handler: JobCallback, options: { tz: string }) => Bun.CronJob)(
         interval,
         callback,

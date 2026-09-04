@@ -25,6 +25,12 @@ class UptimeMakuServer {
     monitorList = {};
 
     /**
+     * Serializes start, restart, and pause operations per monitor.
+     * @type {Map<number, Promise<void>>}
+     */
+    monitorLifecycleOperations = new Map();
+
+    /**
      * Main maintenance list
      * @type {{}}
      */

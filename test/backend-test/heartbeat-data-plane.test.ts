@@ -87,6 +87,52 @@ afterEach(async () => {
 });
 
 describe("heartbeat data plane", () => {
+    test("treats resend interval as elapsed minutes", () => {
+        const monitor = {
+            config: JSON.stringify({ resendInterval: 10 }),
+            last_notification_at: "2026-08-07T12:00:00Z",
+            last_notification_attempt_at: "2026-08-07T12:05:00Z",
+        };
+
+        expect(Monitor.isResendDue(monitor, Date.parse("2026-08-07T12:14:59Z"))).toBe(false);
+        expect(Monitor.isResendDue(monitor, Date.parse("2026-08-07T12:15:00Z"))).toBe(true);
+        expect(
+            Monitor.isResendDue(
+                { ...monitor, last_notification_at: null, last_notification_attempt_at: null },
+                Date.parse("2026-08-07T12:10:00Z")
+            )
+        ).toBe(false);
+        expect(
+            Monitor.isResendDue(
+                { ...monitor, config: JSON.stringify({ resendInterval: 0 }) },
+                Date.parse("2026-08-07T12:10:00Z")
+            )
+        ).toBe(false);
+    });
+
+    test("filters repeated notifications by each notification config", async () => {
+        const { store } = await createRuntime("notification-cadence");
+        await store.exec("INSERT INTO notification (id, name, user_id, config) VALUES (1, 'email', 1, ?)", [
+            JSON.stringify({ type: "test", resendInterval: 30 }),
+        ]);
+        await store.exec("INSERT INTO notification (id, name, user_id, config) VALUES (2, 'api', 1, ?)", [
+            JSON.stringify({ type: "test", resendInterval: 0 }),
+        ]);
+        await store.exec(
+            "INSERT INTO monitor_notification (monitor_id, notification_id, last_notification_at, last_notification_attempt_at) VALUES (1, 1, ?, ?)",
+            ["2026-08-07 12:00:00.000", "2026-08-07 12:00:00.000"]
+        );
+        await store.exec(
+            "INSERT INTO monitor_notification (monitor_id, notification_id, last_notification_at, last_notification_attempt_at) VALUES (1, 2, ?, ?)",
+            ["2026-08-07 12:00:00.000", "2026-08-07 12:00:00.000"]
+        );
+
+        const monitor = await store.findOne("monitor", "id = ?", [1]);
+        const due = await Monitor.getNotificationListForResend(monitor, store, Date.parse("2026-08-07T12:30:00Z"));
+
+        expect(due.map((notification) => notification.id)).toEqual([1]);
+    });
+
     test("isolates writes, reads, rolling buckets, and cache ownership between two real stores", async () => {
         const first = await createRuntime("first");
         const second = await createRuntime("second");
@@ -266,15 +312,27 @@ describe("heartbeat data plane", () => {
         expect((await data.recentForOwner(2, 2, 24)).map((beat) => beat.msg)).toEqual(["foreign-secret"]);
     });
 
-    test("serializes concurrent push transitions and resend counters without lost updates", async () => {
+    test("serializes concurrent push transitions and time-based resends without duplicate notifications", async () => {
         const { data, server, settings, store } = await createRuntime("push-race");
         Prometheus.prototype.update = () => {};
         await store.exec(
-            "UPDATE monitor SET type = 'push', push_token = 'race-token', maxretries = 0, resend_interval = 0 WHERE id = 1"
+            "UPDATE monitor SET type = 'push', push_token = 'race-token', maxretries = 0 WHERE id = 1"
         );
         await data.write(heartbeat(store, { important: 0 }));
         const notifications = [];
-        Monitor.sendNotification = async (...args) => notifications.push(args);
+        Monitor.sendNotification = async (...args) => {
+            notifications.push(args);
+            const [isFirstBeat, monitor, bean, notificationStore, , notificationsToSend] = args;
+            const list =
+                notificationsToSend ??
+                ((await Monitor.getNotificationList(monitor, notificationStore)) || []);
+            if (!(isFirstBeat && bean.status !== DOWN)) {
+                for (const notification of list) {
+                    await Monitor.recordNotificationAttempt(notification, notificationStore, true);
+                }
+            }
+            return { attempted: true, sent: true };
+        };
         const io = { rooms: new Map(), to: () => ({ emit: () => {} }) };
         server.io = io;
         const context = { server, store, heartbeatData: data, settings, disableFrameSameOrigin: false };
@@ -298,7 +356,11 @@ describe("heartbeat data plane", () => {
         await store.exec("DELETE FROM heartbeat");
         data.reset();
         notifications.length = 0;
-        await store.exec("UPDATE monitor SET maxretries = 2, resend_interval = 2 WHERE id = 1");
+        await store.exec("UPDATE monitor SET maxretries = 2 WHERE id = 1");
+        await store.exec("INSERT INTO notification (id, name, user_id, config) VALUES (1, 'push', 1, ?)", [
+            JSON.stringify({ type: "test", resendInterval: 10 }),
+        ]);
+        await store.exec("INSERT INTO monitor_notification (monitor_id, notification_id) VALUES (1, 1)");
         await data.write(heartbeat(store, { important: 0 }));
         const retryResponses = await Promise.all(
             Array.from({ length: 5 }, (_, request) =>
@@ -314,17 +376,58 @@ describe("heartbeat data plane", () => {
             [PENDING, 1, 0],
             [PENDING, 2, 0],
             [DOWN, 3, 0],
-            [DOWN, 4, 1],
+            [DOWN, 4, 0],
             [DOWN, 5, 0],
         ]);
+        expect(notifications).toHaveLength(1);
+
+        await store.exec(
+            "UPDATE monitor_notification SET last_notification_at = datetime('now', '-11 minutes'), last_notification_attempt_at = datetime('now', '-11 minutes') WHERE monitor_id = 1 AND notification_id = 1"
+        );
+        await handleApiRequest(
+            new Request("http://localhost/api/push/race-token?status=down&msg=retry-after-interval"),
+            context
+        );
         expect(notifications).toHaveLength(2);
+    });
+
+    test("records push notification timestamps on the monitor/notification relation", async () => {
+        const { data, server, settings, store } = await createRuntime("push-notification-state");
+        Prometheus.prototype.update = () => {};
+        await store.exec(
+            "UPDATE monitor SET type = 'push', push_token = 'state-token', maxretries = 0 WHERE id = 1"
+        );
+        await store.exec(
+            "UPDATE monitor SET kafka_producer_brokers = '[]', rabbitmq_nodes = '[]', conditions = '[]' WHERE id = 1"
+        );
+        await store.exec("INSERT INTO notification (id, name, user_id, config) VALUES (1, 'push', 1, ?)", [
+            JSON.stringify({ type: "test", resendInterval: 10 }),
+        ]);
+        await store.exec("INSERT INTO monitor_notification (monitor_id, notification_id) VALUES (1, 1)");
+        await data.write(heartbeat(store, { status: UP }));
+
+        Notification.send = async () => "sent";
+        server.io = { rooms: new Map(), to: () => ({ emit: () => {} }) };
+        const context = { server, store, heartbeatData: data, settings, disableFrameSameOrigin: false };
+
+        const response = await handleApiRequest(
+            new Request("http://localhost/api/push/state-token?status=down&msg=state-check"),
+            context
+        );
+        expect(await response.json()).toEqual({ ok: true });
+
+        const state = await store.getRow(
+            "SELECT last_notification_at, last_notification_attempt_at FROM monitor_notification WHERE monitor_id = 1 AND notification_id = 1"
+        );
+        expect(state.last_notification_at).not.toBeNull();
+        expect(state.last_notification_attempt_at).toBe(state.last_notification_at);
     });
 
     test("publishes concurrent push transitions in commit order and never publishes a failed commit", async () => {
         const { data, server, settings, store } = await createRuntime("push-publication-order");
         Prometheus.prototype.update = () => {};
         await store.exec(
-            "UPDATE monitor SET type = 'push', push_token = 'ordered-token', maxretries = 0, resend_interval = 0 WHERE id = 1"
+            "UPDATE monitor SET type = 'push', push_token = 'ordered-token', maxretries = 0 WHERE id = 1"
         );
         await data.write(heartbeat(store, { important: 0 }));
 
@@ -338,6 +441,7 @@ describe("heartbeat data plane", () => {
                 await releaseDownNotification.promise;
             }
             notificationStatuses.push(bean.status);
+            return { attempted: true, sent: true };
         };
         const io = {
             rooms: new Map(),
@@ -399,6 +503,34 @@ describe("heartbeat data plane", () => {
         expect((await data.latest(1)).status).toBe(UP);
     });
 
+    test("keeps retrying after all notification providers fail", async () => {
+        const { server, store } = await createRuntime("notification-failure");
+        await store.exec("UPDATE monitor SET kafka_producer_brokers = '[]', rabbitmq_nodes = '[]' WHERE id = 1");
+        await store.exec("INSERT INTO notification (id, name, user_id, config) VALUES (1, 'broken', 1, ?)", [
+            JSON.stringify({ type: "test" }),
+        ]);
+        await store.exec("INSERT INTO monitor_notification (monitor_id, notification_id) VALUES (1, 1)");
+        server.maintenanceList = {};
+        server.getTimezone = async () => "UTC";
+        server.getTimezoneOffset = () => "+00:00";
+        Notification.send = async () => {
+            throw new Error("provider unavailable");
+        };
+
+        const monitor = await store.findOne("monitor", "id = ?", [1]);
+        const result = await Monitor.sendNotification(
+            false,
+            monitor,
+            heartbeat(store, { status: DOWN }),
+            store,
+            server
+        );
+
+        expect(result).toEqual({ attempted: true, sent: false });
+        expect(await store.getCell("SELECT last_notification_at FROM monitor_notification WHERE id = 1")).toBeNull();
+        expect(await store.getCell("SELECT last_notification_attempt_at FROM monitor_notification WHERE id = 1")).not.toBeNull();
+    });
+
     test("revalidates a push scheduler timeout behind a concurrent API heartbeat", async () => {
         const { data, responseCache, server, settings, store } = await createRuntime("push-scheduler-revalidate");
         Prometheus.prototype.update = () => {};
@@ -425,7 +557,10 @@ describe("heartbeat data plane", () => {
         };
         const notifications = [];
         const socketStatuses = [];
-        Monitor.sendNotification = async (_isFirstBeat, _monitor, bean) => notifications.push(bean.status);
+        Monitor.sendNotification = async (_isFirstBeat, _monitor, bean) => {
+            notifications.push(bean.status);
+            return { attempted: true, sent: true };
+        };
         const io = {
             rooms: new Map(),
             to: () => ({
@@ -474,7 +609,10 @@ describe("heartbeat data plane", () => {
 
         const notifications = [];
         const socketStatuses = [];
-        Monitor.sendNotification = async (_isFirstBeat, _monitor, bean) => notifications.push(bean.status);
+        Monitor.sendNotification = async (_isFirstBeat, _monitor, bean) => {
+            notifications.push(bean.status);
+            return { attempted: true, sent: true };
+        };
         const io = {
             rooms: new Map(),
             to: () => ({
