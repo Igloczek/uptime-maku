@@ -15,18 +15,18 @@ class JiraServiceManagement extends NotificationProvider {
     async send(notification, msg, monitorJSON = null, heartbeatJSON = null) {
         const priority = notification.jsmPriority || 3;
         const baseUrl = `https://api.atlassian.com/jsm/ops/api/${notification.jsmCloudId}/v1`;
-        const textMsg = "Uptime Maku Alert";
+        const textMsg = "iglo.monitor Alert";
 
         try {
             if (heartbeatJSON == null) {
                 // Test notification
-                let notificationTestAlias = "uptime-maku-notification-test";
+                let notificationTestAlias = "iglo-monitor-notification-test";
                 let data = {
                     message: msg,
                     alias: notificationTestAlias,
-                    source: "Uptime Maku",
+                    source: "iglo.monitor",
                     priority: "P5",
-                    tags: ["Uptime Maku"],
+                    tags: ["iglo.monitor"],
                 };
 
                 return this.post(notification, `${baseUrl}/alerts`, data);
@@ -37,9 +37,9 @@ class JiraServiceManagement extends NotificationProvider {
                     message: monitorJSON ? `${textMsg}: ${monitorJSON.name}` : textMsg,
                     alias: monitorJSON.name,
                     description: msg,
-                    source: "Uptime Maku",
+                    source: "iglo.monitor",
                     priority: `P${priority}`,
-                    tags: ["Uptime Maku"],
+                    tags: ["iglo.monitor"],
                 };
 
                 return this.post(notification, `${baseUrl}/alerts`, data);
@@ -55,7 +55,7 @@ class JiraServiceManagement extends NotificationProvider {
 
                 const closeUrl = `${baseUrl}/alerts/${alertId}/close`;
                 let data = {
-                    source: "Uptime Maku",
+                    source: "iglo.monitor",
                 };
 
                 return this.post(notification, closeUrl, data);

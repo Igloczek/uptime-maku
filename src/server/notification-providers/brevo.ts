@@ -27,10 +27,10 @@ class Brevo extends NotificationProvider {
             let data = {
                 sender: {
                     email: notification.brevoFromEmail.trim(),
-                    name: notification.brevoFromName || "Uptime Maku",
+                    name: notification.brevoFromName || "iglo.monitor",
                 },
                 to: to,
-                subject: notification.brevoSubject || "Notification from Your Uptime Maku",
+                subject: notification.brevoSubject || "Notification from Your iglo.monitor",
                 htmlContent: `<html><head></head><body><p>${msg.replace(/\n/g, "<br>")}</p></body></html>`,
             };
 

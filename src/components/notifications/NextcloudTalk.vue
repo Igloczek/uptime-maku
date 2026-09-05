@@ -56,8 +56,8 @@
 # Setup bot
 occ talk:bot:install \
     --feature response --no-setup \
-    "Uptime Maku Bot" "Secret" \
-    https://uptime-maku.example.com
+    "iglo.monitor Bot" "Secret" \
+    https://iglo-monitor.example.com
 
 # Obtain BotId
 occ talk:bot:list

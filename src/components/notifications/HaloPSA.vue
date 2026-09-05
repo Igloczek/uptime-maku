@@ -80,8 +80,8 @@
                     : {{ $t("halopsa_field_timestamp") }}
                 </li>
                 <li>
-                    <b>uptime_maku_version</b>
-                    : {{ $t("halopsa_field_uptime_maku_version") }}
+                    <b>iglo_monitor_version</b>
+                    : {{ $t("halopsa_field_iglo_monitor_version") }}
                 </li>
             </ul>
             <p class="mb-0 text-muted">

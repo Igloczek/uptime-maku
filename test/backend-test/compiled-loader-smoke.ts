@@ -5,7 +5,7 @@ import { createCloudflaredRuntime } from "@/server/socket-handlers/cloudflared-s
 import { getWebpushVapidPublicKey } from "@/server/webpush-vapid";
 
 const settings = { get: async () => null };
-const server = { store: {}, settings, getUserAgent: () => "Uptime Maku compiled loader smoke" };
+const server = { store: {}, settings, getUserAgent: () => "iglo.monitor compiled loader smoke" };
 const monitorRegistry = new MonitorRuntimeRegistry(server);
 const notificationRegistry = new NotificationProviderRegistry(settings);
 

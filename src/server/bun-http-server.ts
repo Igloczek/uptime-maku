@@ -61,7 +61,7 @@ function validateSqliteSnapshot(snapshotPath) {
             .query("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('monitor', 'setting', 'user')")
             .all();
         if (requiredTables.length !== 3) {
-            throw new Error("Snapshot is not a Uptime Maku database.");
+            throw new Error("Snapshot is not an iglo.monitor database.");
         }
         if (db.query("PRAGMA foreign_key_check").all().length > 0) {
             throw new Error("Snapshot failed foreign-key validation.");

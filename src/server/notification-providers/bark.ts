@@ -1,7 +1,7 @@
 // @ts-nocheck
 //
 //  bark.js
-//  Uptime Maku
+//  iglo.monitor
 //
 //  Created by Lakr Aream on 2021/10/24.
 //  Copyright © 2021 Lakr Aream. All rights reserved.
@@ -13,7 +13,7 @@ import NotificationProvider from "@/server/notification-providers/notification-p
 import { DOWN, UP } from "@/constants";
 import httpClient from "@/server/http-client";
 
-const barkNotificationAvatar = "https://raw.githubusercontent.com/Igloczek/uptime-maku/master/public/icon.png";
+const barkNotificationAvatar = "https://raw.githubusercontent.com/iglo-tech/iglo.monitor/master/public/icon.png";
 const successMessage = "Successes!";
 
 class Bark extends NotificationProvider {
@@ -31,17 +31,17 @@ class Bark extends NotificationProvider {
         }
 
         if (msg != null && heartbeatJSON != null && heartbeatJSON["status"] === UP) {
-            let title = "Uptime Maku Monitor Up";
+            let title = "iglo.monitor Monitor Up";
             return await this.postNotification(notification, title, msg, barkEndpoint);
         }
 
         if (msg != null && heartbeatJSON != null && heartbeatJSON["status"] === DOWN) {
-            let title = "Uptime Maku Monitor Down";
+            let title = "iglo.monitor Monitor Down";
             return await this.postNotification(notification, title, msg, barkEndpoint);
         }
 
         if (msg != null) {
-            let title = "Uptime Maku Message";
+            let title = "iglo.monitor Message";
             return await this.postNotification(notification, title, msg, barkEndpoint);
         }
     }
@@ -53,14 +53,14 @@ class Bark extends NotificationProvider {
      * @returns {string} Additional URL parameters
      */
     additionalParameters(notification) {
-        // set icon to Uptime Maku icon, 11kb should be fine
+        // set icon to iglo.monitor icon, 11kb should be fine
         let params = "?icon=" + barkNotificationAvatar;
         // grouping all our notifications
         if (notification.barkGroup != null) {
             params += "&group=" + notification.barkGroup;
         } else {
             // default name
-            params += "&group=" + "Uptime Maku";
+            params += "&group=" + "iglo.monitor";
         }
         // picked a sound, this should follow system's mute status when arrival
         if (notification.barkSound != null) {
@@ -112,7 +112,7 @@ class Bark extends NotificationProvider {
                     body: subtitle,
                     icon: barkNotificationAvatar,
                     sound: notification.barkSound || "telegraph", // default sound is telegraph
-                    group: notification.barkGroup || "Uptime Maku", // default group is Uptime Maku
+                    group: notification.barkGroup || "iglo.monitor", // default group is iglo.monitor
                 },
                 config
             );

@@ -36,15 +36,15 @@ ownership booleans, response bytes, per-user latency, pair latency, and RSS befo
 Baseline preparation and identical runs:
 
 ```bash
-git worktree add --detach /tmp/uptime-maku-baseline-auth 209259b1010fe9e7d4680c66393b228638885e7a
-ln -s "$PWD/node_modules" /tmp/uptime-maku-baseline-auth/node_modules
-(cd /tmp/uptime-maku-baseline-auth && bun run build:frontend)
+git worktree add --detach /tmp/iglo-monitor-baseline-auth 209259b1010fe9e7d4680c66393b228638885e7a
+ln -s "$PWD/node_modules" /tmp/iglo-monitor-baseline-auth/node_modules
+(cd /tmp/iglo-monitor-baseline-auth && bun run build:frontend)
 bun scripts/benchmark/auth-security-api-metrics.ts \
-  --repo=/tmp/uptime-maku-baseline-auth --samples=3 \
-  > /tmp/uptime-maku-auth-metrics-before.jsonl
+  --repo=/tmp/iglo-monitor-baseline-auth --samples=3 \
+  > /tmp/iglo-monitor-auth-metrics-before.jsonl
 bun scripts/benchmark/auth-security-api-metrics.ts \
   --repo="$PWD" --samples=3 --expect-isolated=1 \
-  > /tmp/uptime-maku-auth-metrics-after.jsonl
+  > /tmp/iglo-monitor-auth-metrics-after.jsonl
 ```
 
 `--expect-isolated=1` makes the final run fail if either user sees the other user's monitor or if the URL secret is
@@ -122,7 +122,7 @@ WebSocket-upgrade input: it passes `bunServer.requestIP(request)?.address || ""`
 canonicalization policy, matching the established HTTP `/metrics` path. Therefore, with `trustProxy=false`, a Bun peer
 of `127.0.0.1` remains the source even when `X-Forwarded-For` and `X-Real-IP` are spoofed. With `trustProxy=true`, the
 existing configured behavior deliberately uses forwarding headers; an operator enabling it must prevent direct access
-to Uptime Maku, because this change does not add a trusted-proxy allowlist.
+to iglo.monitor, because this change does not add a trusted-proxy allowlist.
 
 The production-path repro filled the 100 exact login identities with one failed login each, then made 250 invalid
 WebSocket logins from one Bun peer through five rotating spoofed forwarding-header sets. On the parent runtime all

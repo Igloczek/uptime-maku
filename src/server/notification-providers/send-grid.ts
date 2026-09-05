@@ -39,7 +39,7 @@ class SendGrid extends NotificationProvider {
             let data = {
                 personalizations: [personalizations],
                 from: { email: notification.sendgridFromEmail.trim() },
-                subject: notification.sendgridSubject || "Notification from Your Uptime Maku",
+                subject: notification.sendgridSubject || "Notification from Your iglo.monitor",
                 content: [
                     {
                         type: "text/plain",

@@ -145,7 +145,7 @@ class BunRealtimeAdapter {
         const clientIP = await this.server.getClientIPwithProxy(bunServer.requestIP(request)?.address || "", headers);
         log.info("socket", `New websocket connection, IP = ${clientIP}`);
 
-        const bypass = process.env.UPTIME_MAKU_WS_ORIGIN_CHECK === "bypass";
+        const bypass = process.env.IGLO_MONITOR_WS_ORIGIN_CHECK === "bypass";
         const origin = request.headers.get("origin");
         if (!bypass && origin) {
             try {

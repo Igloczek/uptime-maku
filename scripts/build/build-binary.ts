@@ -4,7 +4,7 @@ import { $ } from "bun";
 
 const projectRoot = path.resolve(import.meta.dirname, "../..");
 const outfileArg = process.argv.find((arg) => arg.startsWith("--outfile="))?.slice("--outfile=".length);
-const outfile = outfileArg ? path.resolve(projectRoot, outfileArg) : path.join(projectRoot, "uptime-maku");
+const outfile = outfileArg ? path.resolve(projectRoot, outfileArg) : path.join(projectRoot, "iglo.monitor");
 
 process.chdir(projectRoot);
 

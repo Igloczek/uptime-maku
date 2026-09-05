@@ -20,7 +20,7 @@ Date: 2026-06-29
     - `http-graceful-shutdown`
     - `socket.io`
     - `dotenv`
-- Removed the Node HTTP/Socket.IO fallback constructor path from `src/server/uptime-maku-server.ts`.
+- Removed the Node HTTP/Socket.IO fallback constructor path from `src/server/iglo-monitor-server.ts`.
 - Added a Bun-only entrypoint guard in `src/server/server.ts`; running the server without Bun exits immediately.
 - Replaced release version helper lockfile updates with `bun install --lockfile-only`.
 - Replaced package-version reads that depended on npm script environment variables with direct `package.json` reads.
@@ -30,18 +30,18 @@ Date: 2026-06-29
 
 These remain because code still imports them directly on supported paths.
 
-| Dependency                                  | Current owner                                                                                                                           |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `express`                                   | `src/server/server.ts`, `src/server/uptime-maku-server.ts`, routers, and compatibility middleware still mount an Express app behind Bun. |
-| `express-basic-auth`                        | `src/server/auth.ts` basic-auth middleware.                                                                                             |
-| `express-static-gzip`                       | `src/server/server.ts` static asset compatibility path.                                                                                 |
-| `prometheus-api-metrics`                    | `/metrics` middleware in `src/server/server.ts`.                                                                                        |
-| `@louislam/sqlite3`, `redbean-node`, `knex` | SQLite migration tests and legacy migration assets. The application runtime uses the Bun SQLite compatibility store.                    |
-| `axios`                                     | Frontend pages, notification providers, monitor implementations, Docker helper, update checker, and vendored NTLM helper.               |
-| `ws`                                        | WebSocket Upgrade monitor implementation and backend websocket tests.                                                                   |
-| `isomorphic-ws`                             | Nostr notification provider global WebSocket shim.                                                                                      |
-| `node-cloudflared-tunnel`                   | Cloudflared socket handler.                                                                                                             |
-| `node-radius-utils`                         | Radius utility wrapper in `src/server/util-server.ts`.                                                                                  |
+| Dependency                                  | Current owner                                                                                                                             |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `express`                                   | `src/server/server.ts`, `src/server/iglo-monitor-server.ts`, routers, and compatibility middleware still mount an Express app behind Bun. |
+| `express-basic-auth`                        | `src/server/auth.ts` basic-auth middleware.                                                                                               |
+| `express-static-gzip`                       | `src/server/server.ts` static asset compatibility path.                                                                                   |
+| `prometheus-api-metrics`                    | `/metrics` middleware in `src/server/server.ts`.                                                                                          |
+| `@louislam/sqlite3`, `redbean-node`, `knex` | SQLite migration tests and legacy migration assets. The application runtime uses the Bun SQLite compatibility store.                      |
+| `axios`                                     | Frontend pages, notification providers, monitor implementations, Docker helper, update checker, and vendored NTLM helper.                 |
+| `ws`                                        | WebSocket Upgrade monitor implementation and backend websocket tests.                                                                     |
+| `isomorphic-ws`                             | Nostr notification provider global WebSocket shim.                                                                                        |
+| `node-cloudflared-tunnel`                   | Cloudflared socket handler.                                                                                                               |
+| `node-radius-utils`                         | Radius utility wrapper in `src/server/util-server.ts`.                                                                                    |
 
 ## Validation
 
@@ -50,7 +50,7 @@ These remain because code still imports them directly on supported paths.
 - `bun run lint`: passed with inherited Oxlint warnings and Stylelint deprecation warnings.
 - `bun run build`: passed.
 - `bun run test:backend`: passed, 17 tests.
-- Current Docker validation moved to the later SQLite-only Docker cleanup report. This historical run built `uptime-maku:bun-final` at `438054063` bytes before the image matrix cleanup.
+- Current Docker validation moved to the later SQLite-only Docker cleanup report. This historical run built `iglo-monitor:bun-final` at `438054063` bytes before the image matrix cleanup.
 
 ## Local Browser Smoke
 
@@ -72,7 +72,7 @@ These remain because code still imports them directly on supported paths.
 - Started local image through root compose file:
 
 ```bash
-UPTIME_MAKU_PORT=3013 UPTIME_MAKU_DATA_DIR=/tmp/uptime-maku-final-compose-smoke docker compose -p uptime-maku-final-smoke up -d --force-recreate
+IGLO_MONITOR_PORT=3013 IGLO_MONITOR_DATA_DIR=/tmp/iglo-monitor-final-compose-smoke docker compose -p iglo-monitor-final-smoke up -d --force-recreate
 ```
 
 - `/setup` returned HTTP 200.
@@ -86,4 +86,4 @@ UPTIME_MAKU_PORT=3013 UPTIME_MAKU_DATA_DIR=/tmp/uptime-maku-final-compose-smoke 
 { "users": 1, "monitors": 1, "heartbeats": 1, "latest": { "status": 1, "msg": "200 - OK" } }
 ```
 
-- Cleanup: compose stack removed and `/tmp/uptime-maku-final-compose-smoke` deleted.
+- Cleanup: compose stack removed and `/tmp/iglo-monitor-final-compose-smoke` deleted.

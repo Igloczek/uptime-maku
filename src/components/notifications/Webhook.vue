@@ -100,7 +100,7 @@ export default {
         customBodyPlaceholder() {
             return this.$t("Example:", [
                 `{
-    "Title": "Uptime Maku Alert{% if monitorJSON %} - {{ monitorJSON['name'] }}{% endif %}",
+    "Title": "iglo.monitor Alert{% if monitorJSON %} - {{ monitorJSON['name'] }}{% endif %}",
     "Body": "{{ msg }}"
 }`,
             ]);

@@ -7,17 +7,17 @@ import { args } from "@/server/args";
 const isFreeBSD = /^freebsd/.test(process.platform);
 
 let hostEnv = isFreeBSD ? null : process.env.HOST;
-const hostname = args.host || process.env.UPTIME_MAKU_HOST || hostEnv;
+const hostname = args.host || process.env.IGLO_MONITOR_HOST || hostEnv;
 
-const port = [args.port, process.env.UPTIME_MAKU_PORT, process.env.PORT, 3001]
+const port = [args.port, process.env.IGLO_MONITOR_PORT, process.env.PORT, 3001]
     .map((portValue) => parseInt(portValue))
     .find((portValue) => !isNaN(portValue));
 
-const sslKey = args["ssl-key"] || process.env.UPTIME_MAKU_SSL_KEY || process.env.SSL_KEY || undefined;
-const sslCert = args["ssl-cert"] || process.env.UPTIME_MAKU_SSL_CERT || process.env.SSL_CERT || undefined;
+const sslKey = args["ssl-key"] || process.env.IGLO_MONITOR_SSL_KEY || process.env.SSL_KEY || undefined;
+const sslCert = args["ssl-cert"] || process.env.IGLO_MONITOR_SSL_CERT || process.env.SSL_CERT || undefined;
 const sslKeyPassphrase =
     args["ssl-key-passphrase"] ||
-    process.env.UPTIME_MAKU_SSL_KEY_PASSPHRASE ||
+    process.env.IGLO_MONITOR_SSL_KEY_PASSPHRASE ||
     process.env.SSL_KEY_PASSPHRASE ||
     undefined;
 

@@ -162,7 +162,7 @@ function smtpVariantFields(): NotificationFormField[] {
         textField("username", "smtpUsername", "Username", { required: false }),
         secretField("password", "smtpPassword", "Password", { required: false }),
         textField("from-email", "smtpFrom", "From Email", {
-            placeholder: '"Uptime Maku" <alerts@example.com>',
+            placeholder: '"iglo.monitor" <alerts@example.com>',
         }),
         textField("to-email", "smtpTo", "To Email", {
             required: false,
@@ -500,7 +500,7 @@ export const notificationFormSchemas: Record<string, NotificationFormSchema> = {
         ],
         {
             variant: "template-body",
-            defaults: { sendgridSubject: "Notification from Your Uptime Maku" },
+            defaults: { sendgridSubject: "Notification from Your iglo.monitor" },
         }
     ),
     Brevo: schema(
@@ -522,8 +522,8 @@ export const notificationFormSchemas: Record<string, NotificationFormSchema> = {
         {
             variant: "template-body",
             defaults: {
-                brevoSubject: "Notification from Your Uptime Maku",
-                brevoFromName: "Uptime Maku",
+                brevoSubject: "Notification from Your iglo.monitor",
+                brevoFromName: "iglo.monitor",
             },
         }
     ),
@@ -544,8 +544,8 @@ export const notificationFormSchemas: Record<string, NotificationFormSchema> = {
         {
             variant: "template-body",
             defaults: {
-                resendSubject: "Notification from Your Uptime Maku",
-                resendFromName: "Uptime Maku",
+                resendSubject: "Notification from Your iglo.monitor",
+                resendFromName: "iglo.monitor",
             },
         }
     ),
@@ -615,7 +615,7 @@ export const notificationFormSchemas: Record<string, NotificationFormSchema> = {
             secretField("notifery-api-key", "notiferyApiKey", "API Key"),
             textField("notifery-title", "notiferyTitle", "Title", {
                 required: false,
-                placeholder: "Uptime Maku Alert",
+                placeholder: "iglo.monitor Alert",
             }),
             textField("notifery-group", "notiferyGroup", "Group", {
                 required: false,
@@ -706,7 +706,7 @@ export const notificationFormSchemas: Record<string, NotificationFormSchema> = {
                 },
             ],
         }),
-        { variant: "sms", defaults: { sevenioSender: "Uptime Maku" } }
+        { variant: "sms", defaults: { sevenioSender: "iglo.monitor" } }
     ),
     clicksendsms: schema(
         "clicksendsms",

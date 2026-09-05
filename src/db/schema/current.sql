@@ -1,4 +1,4 @@
--- Uptime Maku canonical SQLite schema (Knex migration end-state).
+-- iglo.monitor canonical SQLite schema (Knex migration end-state).
 -- Regenerate src/db/kuma.db via: bun scripts/build/generate-kuma-db.ts
 
 PRAGMA foreign_keys = OFF;

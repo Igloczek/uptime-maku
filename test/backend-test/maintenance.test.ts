@@ -13,7 +13,7 @@ import Maintenance from "@/server/model/maintenance";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
 import "@/server/model-registry";
 import { cachedResponse, clearResponseCache, createResponseCache, textResponse } from "@/server/bun-response";
-import { UptimeMakuServer } from "@/server/uptime-maku-server";
+import { IgloMonitorServer } from "@/server/iglo-monitor-server";
 import { Settings } from "@/server/settings";
 import { maintenanceSocketHandler } from "@/server/socket-handlers/maintenance-socket-handler";
 
@@ -31,7 +31,7 @@ describe("maintenance validation and timer lifecycle", () => {
     beforeEach(() => {
         runtimeStore = new BunSQLiteRedbean();
         runtimeSettings = new Settings(runtimeStore);
-        runtimeServer = new UptimeMakuServer(runtimeStore, runtimeSettings);
+        runtimeServer = new IgloMonitorServer(runtimeStore, runtimeSettings);
         responseCache = createResponseCache();
         originals = {
             begin: runtimeStore.begin,
@@ -136,7 +136,7 @@ describe("maintenance validation and timer lifecycle", () => {
     });
 
     test("uses the supplied runtime server for SAME_AS_SERVER monitor maintenance", async () => {
-        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-monitor-maintenance-"));
+        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-monitor-maintenance-"));
         try {
             await runtimeStore.connect({
                 sqlitePath: path.join(directory, "kuma.db"),
@@ -507,7 +507,7 @@ describe("maintenance validation and timer lifecycle", () => {
     });
 
     test("keeps a concurrent pause outside a failed edit transaction until callback and cache publication", async () => {
-        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-isolation-"));
+        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-maintenance-isolation-"));
         const sqlitePath = path.join(directory, "kuma.db");
         const server = runtimeServer;
         const previousMaintenanceList = server.maintenanceList;
@@ -646,7 +646,7 @@ describe("maintenance validation and timer lifecycle", () => {
     });
 
     test("rolls back when addMaintenance fails on its first transaction operation", async () => {
-        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-add-first-error-"));
+        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-maintenance-add-first-error-"));
         const store = new BunSQLiteRedbean();
         const originalBeginForTest = runtimeStore.begin;
         await store.connect({
@@ -690,7 +690,7 @@ describe("maintenance validation and timer lifecycle", () => {
     });
 
     test("rolls back when relation replacement fails on its first transaction operation", async () => {
-        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-relation-first-error-"));
+        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-maintenance-relation-first-error-"));
         const store = new BunSQLiteRedbean();
         const server = runtimeServer;
         const previousMaintenanceList = server.maintenanceList;
@@ -748,7 +748,7 @@ describe("maintenance validation and timer lifecycle", () => {
     });
 
     test("rolls back when edit setup fails immediately after begin", async () => {
-        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-first-error-"));
+        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-maintenance-first-error-"));
         const store = new BunSQLiteRedbean();
         const server = runtimeServer;
         const previousMaintenanceList = server.maintenanceList;
@@ -832,7 +832,7 @@ describe("maintenance validation and timer lifecycle", () => {
     });
 
     test("uses the supplied store and keeps maintenance ownership isolated", async () => {
-        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-stores-"));
+        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-maintenance-stores-"));
         const first = new BunSQLiteRedbean();
         const second = new BunSQLiteRedbean();
         const socket = (userID, handlers) => ({

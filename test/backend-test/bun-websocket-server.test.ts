@@ -6,18 +6,18 @@ import os from "node:os";
 import path from "node:path";
 import { BunRealtimeAdapter } from "@/server/bun-websocket-server";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
-import { UptimeMakuServer } from "@/server/uptime-maku-server";
+import { IgloMonitorServer } from "@/server/iglo-monitor-server";
 import { Settings } from "@/server/settings";
 
 async function upgrade({ peer, headers = {}, trustProxy = false }) {
     const settings = { get: async () => trustProxy };
     const server = {
         settings,
-        getClientIPwithProxy: UptimeMakuServer.prototype.getClientIPwithProxy,
+        getClientIPwithProxy: IgloMonitorServer.prototype.getClientIPwithProxy,
     };
     const adapter = new BunRealtimeAdapter(server, settings);
     let data;
-    const upgraded = await adapter.canUpgrade(new Request("http://uptime-maku.test/ws", { headers }), {
+    const upgraded = await adapter.canUpgrade(new Request("http://iglo-monitor.test/ws", { headers }), {
         requestIP: () => (peer ? { address: peer } : undefined),
         upgrade: (_, options) => {
             data = options.data;
@@ -60,7 +60,7 @@ describe("Bun WebSocket client source", () => {
     });
 
     test("shares trustProxy invalidation and snapshot cache clears with injected settings", async () => {
-        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-settings-ws-"));
+        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-settings-ws-"));
         const store = new BunSQLiteRedbean();
         const settings = new Settings(store);
         await store.connect({
@@ -70,7 +70,7 @@ describe("Bun WebSocket client source", () => {
         });
 
         try {
-            const server = { settings, getClientIPwithProxy: UptimeMakuServer.prototype.getClientIPwithProxy };
+            const server = { settings, getClientIPwithProxy: IgloMonitorServer.prototype.getClientIPwithProxy };
             const forwardedHeaders = { "x-forwarded-for": "203.0.113.9" };
             await settings.set("trustProxy", true);
             expect(await server.getClientIPwithProxy("127.0.0.1", forwardedHeaders)).toBe("203.0.113.9");
@@ -78,7 +78,7 @@ describe("Bun WebSocket client source", () => {
             await settings.set("trustProxy", false);
             const adapter = new BunRealtimeAdapter(server, settings);
             let remoteAddress;
-            await adapter.canUpgrade(new Request("http://uptime-maku.test/ws", { headers: forwardedHeaders }), {
+            await adapter.canUpgrade(new Request("http://iglo-monitor.test/ws", { headers: forwardedHeaders }), {
                 requestIP: () => ({ address: "127.0.0.1" }),
                 upgrade: (_, options) => {
                     remoteAddress = options.data.remoteAddress;
@@ -93,7 +93,7 @@ describe("Bun WebSocket client source", () => {
             settings.cacheList = {};
             expect(await server.getClientIPwithProxy("127.0.0.1", forwardedHeaders)).toBe("127.0.0.1");
             remoteAddress = null;
-            await adapter.canUpgrade(new Request("http://uptime-maku.test/ws", { headers: forwardedHeaders }), {
+            await adapter.canUpgrade(new Request("http://iglo-monitor.test/ws", { headers: forwardedHeaders }), {
                 requestIP: () => ({ address: "127.0.0.1" }),
                 upgrade: (_, options) => {
                     remoteAddress = options.data.remoteAddress;

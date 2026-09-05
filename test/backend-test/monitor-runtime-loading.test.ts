@@ -3,14 +3,14 @@
 import { describe, test, expect } from "bun:test";
 import { MonitorRuntimeRegistry } from "@/server/monitor-runtime-registry";
 import { NotificationProviderRegistry } from "@/server/notification-provider-registry";
-import { UptimeMakuServer } from "@/server/uptime-maku-server";
+import { IgloMonitorServer } from "@/server/iglo-monitor-server";
 import { sendMonitorTypeList } from "@/server/client";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
 import { Settings } from "@/server/settings";
 
 function createServer() {
     const store = new BunSQLiteRedbean();
-    return new UptimeMakuServer(store, new Settings(store));
+    return new IgloMonitorServer(store, new Settings(store));
 }
 
 describe("runtime-owned lazy registries", () => {
@@ -49,7 +49,7 @@ describe("runtime-owned lazy registries", () => {
         expect([monitorLoads, providerLoads]).toEqual([0, 0]);
     });
 
-    test("each UptimeMakuServer owns isolated monitor and provider instances", async () => {
+    test("each IgloMonitorServer owns isolated monitor and provider instances", async () => {
         const first = createServer();
         const second = createServer();
 

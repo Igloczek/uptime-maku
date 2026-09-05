@@ -164,7 +164,7 @@ class GlobalpingMonitorType extends MonitorType {
         if (monitor.cacheBust) {
             const randomFloatString = Math.random().toString(36);
             const cacheBust = randomFloatString.substring(2);
-            url.searchParams.set("uptime_maku_cachebuster", cacheBust);
+            url.searchParams.set("iglo_monitor_cachebuster", cacheBust);
         }
 
         const opts = {

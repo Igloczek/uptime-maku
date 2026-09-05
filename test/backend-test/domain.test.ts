@@ -7,7 +7,7 @@ import { Settings } from "@/server/settings";
 import dayjs from "dayjs";
 import dayjsPlugin_10 from "dayjs/plugin/utc";
 
-process.env.UPTIME_MAKU_HIDE_LOG = ["info_db", "info_server"].join(",");
+process.env.IGLO_MONITOR_HIDE_LOG = ["info_db", "info_server"].join(",");
 
 dayjs.extend(dayjsPlugin_10);
 

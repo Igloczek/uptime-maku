@@ -19,7 +19,7 @@ class SIGNL4 extends NotificationProvider {
                 monitor: monitorJSON,
                 msg,
                 // Source system
-                "X-S4-SourceSystem": "Uptime Maku",
+                "X-S4-SourceSystem": "iglo.monitor",
                 monitorUrl: this.extractAddress(monitorJSON),
             };
 
@@ -32,15 +32,15 @@ class SIGNL4 extends NotificationProvider {
 
             if (heartbeatJSON == null) {
                 // Test alert
-                data.title = "Uptime Maku Alert";
+                data.title = "iglo.monitor Alert";
                 data.message = msg;
             } else if (heartbeatJSON.status === UP) {
-                data.title = "Uptime Maku Monitor ✅ Up";
-                data["X-S4-ExternalID"] = "Uptime Maku-" + monitorJSON.monitorID;
+                data.title = "iglo.monitor Monitor ✅ Up";
+                data["X-S4-ExternalID"] = "iglo.monitor-" + monitorJSON.monitorID;
                 data["X-S4-Status"] = "resolved";
             } else if (heartbeatJSON.status === DOWN) {
-                data.title = "Uptime Maku Monitor 🔴 Down";
-                data["X-S4-ExternalID"] = "Uptime Maku-" + monitorJSON.monitorID;
+                data.title = "iglo.monitor Monitor 🔴 Down";
+                data["X-S4-ExternalID"] = "iglo.monitor-" + monitorJSON.monitorID;
                 data["X-S4-Status"] = "new";
             }
 

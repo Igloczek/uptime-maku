@@ -153,7 +153,7 @@ function unauthorizedResponse(disableFrameSameOrigin) {
         status: 401,
         disableFrameSameOrigin,
         headers: {
-            "WWW-Authenticate": 'Basic realm="Uptime Maku"',
+            "WWW-Authenticate": 'Basic realm="iglo.monitor"',
         },
     });
 }

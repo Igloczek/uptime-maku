@@ -21,17 +21,17 @@ jobs:
             matrix:
                 include:
                     - target: bun-linux-x64
-                      asset_name: uptime-maku-linux-x64
+                      asset_name: iglo.monitor-linux-x64
                     - target: bun-linux-arm64
-                      asset_name: uptime-maku-linux-arm64
+                      asset_name: iglo.monitor-linux-arm64
                     - target: bun-linux-x64-musl
-                      asset_name: uptime-maku-linux-x64-musl
+                      asset_name: iglo.monitor-linux-x64-musl
                     - target: bun-darwin-x64
-                      asset_name: uptime-maku-darwin-x64
+                      asset_name: iglo.monitor-darwin-x64
                     - target: bun-darwin-arm64
-                      asset_name: uptime-maku-darwin-arm64
+                      asset_name: iglo.monitor-darwin-arm64
                     - target: bun-windows-x64
-                      asset_name: uptime-maku-windows-x64
+                      asset_name: iglo.monitor-windows-x64
 
         steps:
             - uses: actions/checkout@v4
@@ -83,7 +83,7 @@ jobs:
             - name: Generate checksums
               run: |
                   cd release-assets
-                  sha256sum uptime-maku-* > checksums-sha256.txt
+                  sha256sum iglo.monitor-* > checksums-sha256.txt
                   cat checksums-sha256.txt
 
             - name: Create release
@@ -94,5 +94,5 @@ jobs:
                   make_latest: ${{ contains(github.ref_name, '-') && 'false' || 'true' }}
                   fail_on_unmatched_files: true
                   files: |
-                      release-assets/uptime-maku-*
+                      release-assets/iglo.monitor-*
                       release-assets/checksums-sha256.txt

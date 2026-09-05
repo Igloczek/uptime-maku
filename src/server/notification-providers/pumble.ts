@@ -19,7 +19,7 @@ class Pumble extends NotificationProvider {
                 let data = {
                     attachments: [
                         {
-                            title: "Uptime Maku Alert",
+                            title: "iglo.monitor Alert",
                             text: msg,
                             color: "#5BDD8B",
                         },

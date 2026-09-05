@@ -37,7 +37,7 @@ describe("Server Utilities: pingAsync", () => {
     });
 
     test("should handle standard ASCII domains correctly", async () => {
-        const domain = "uptime-maku-unresolvable.invalid";
+        const domain = "iglo-monitor-unresolvable.invalid";
 
         try {
             await pingAsync(domain, false, 1, "", true, 56, 1, 1);

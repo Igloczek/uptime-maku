@@ -2,8 +2,8 @@ node_modules
 .DS_Store
 dist
 dist-ssr
-/uptime-maku
-/uptime-maku.exe
+/iglo.monitor
+/iglo.monitor.exe
 *.local
 .idea
 

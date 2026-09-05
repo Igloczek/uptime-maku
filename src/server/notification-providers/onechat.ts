@@ -35,7 +35,7 @@ class OneChat extends NotificationProvider {
                     to: notification.recieverId,
                     bot_id: notification.botId,
                     type: "text",
-                    message: `Uptime Maku Alert:
+                    message: `iglo.monitor Alert:
 [🔴 Down]
 Name: ${monitorJSON["name"]}
 ${heartbeatJSON["msg"]}
@@ -47,7 +47,7 @@ Time (${heartbeatJSON["timezone"]}): ${heartbeatJSON["localDateTime"]}`,
                     to: notification.recieverId,
                     bot_id: notification.botId,
                     type: "text",
-                    message: `Uptime Maku Alert:
+                    message: `iglo.monitor Alert:
 [🟢 Up]
 Name: ${monitorJSON["name"]}
 ${heartbeatJSON["msg"]}

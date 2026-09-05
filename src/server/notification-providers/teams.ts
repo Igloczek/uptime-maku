@@ -71,7 +71,7 @@ class Teams extends NotificationProvider {
         if (dashboardUrl) {
             actions.push({
                 type: "Action.OpenUrl",
-                title: "Visit Uptime Maku",
+                title: "Visit iglo.monitor",
                 url: dashboardUrl,
             });
         }
@@ -128,8 +128,8 @@ class Teams extends NotificationProvider {
                                         type: "Image",
                                         width: "32px",
                                         style: "Person",
-                                        url: "https://raw.githubusercontent.com/Igloczek/uptime-maku/master/public/icon.png",
-                                        altText: "Uptime Maku Logo",
+                                        url: "https://raw.githubusercontent.com/iglo-tech/iglo.monitor/master/public/icon.png",
+                                        altText: "iglo.monitor Logo",
                                     },
                                 ],
                             },
@@ -147,7 +147,7 @@ class Teams extends NotificationProvider {
                                         type: "TextBlock",
                                         size: "Small",
                                         weight: "Default",
-                                        text: "Uptime Maku Alert",
+                                        text: "iglo.monitor Alert",
                                         isSubtle: true,
                                         spacing: "None",
                                     },

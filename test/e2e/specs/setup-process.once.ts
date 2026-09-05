@@ -2,7 +2,7 @@
 import { test } from "@playwright/test";
 import { login, screenshot, takeSqliteSnapshot } from "../util-test";
 
-test.describe("Uptime Maku Setup", () => {
+test.describe("iglo.monitor Setup", () => {
     test.afterEach(async ({ page }, testInfo) => {
         await screenshot(testInfo, page);
     });

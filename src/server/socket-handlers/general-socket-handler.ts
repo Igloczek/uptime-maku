@@ -40,7 +40,7 @@ async function getGameList() {
 /**
  * Handler for general events
  * @param {Socket} socket Socket.io instance
- * @param {UptimeMakuServer} server Uptime Maku server
+ * @param {IgloMonitorServer} server iglo.monitor server
  * @returns {void}
  */
 export const generalSocketHandler = (socket, server, settings, versionChecker) => {

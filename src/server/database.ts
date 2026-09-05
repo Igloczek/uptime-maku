@@ -128,7 +128,7 @@ class Database {
 
     /**
      * Remove legacy db-config.json left over from multi-backend installs.
-     * Uptime Maku is SQLite-only; the file is no longer read or written.
+     * iglo.monitor is SQLite-only; the file is no longer read or written.
      * @returns {void}
      */
     static removeLegacyDbConfig() {

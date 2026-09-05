@@ -28,7 +28,7 @@ class OneBot extends NotificationProvider {
                 },
             };
             config = this.getAxiosConfigWithProxy(config);
-            let pushText = "Uptime Maku Alert: " + msg;
+            let pushText = "iglo.monitor Alert: " + msg;
             let data = {
                 auto_escape: true,
                 message: pushText,

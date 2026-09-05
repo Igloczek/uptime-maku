@@ -668,7 +668,7 @@ class Monitor extends BeanModel {
                         const randomFloatString = Math.random().toString(36);
                         const cacheBust = randomFloatString.substring(2);
                         options.params = {
-                            uptime_maku_cachebuster: cacheBust,
+                            iglo_monitor_cachebuster: cacheBust,
                         };
                     }
 
@@ -717,7 +717,7 @@ class Monitor extends BeanModel {
                     }
 
                     // eslint-disable-next-line eqeqeq
-                    if (process.env.UPTIME_MAKU_LOG_RESPONSE_BODY_MONITOR_ID == this.id) {
+                    if (process.env.IGLO_MONITOR_LOG_RESPONSE_BODY_MONITOR_ID == this.id) {
                         log.info("monitor", res.data);
                     }
 
@@ -942,7 +942,7 @@ class Monitor extends BeanModel {
                         {
                             allowAutoTopicCreation: this.kafkaProducerAllowAutoTopicCreation,
                             ssl: this.kafkaProducerSsl,
-                            clientId: `Uptime Maku/${version}`,
+                            clientId: `iglo.monitor/${version}`,
                             interval: this.interval,
                             timeout: this.timeout,
                             connectionTimeout: this.timeout,
@@ -1219,7 +1219,7 @@ class Monitor extends BeanModel {
                     }
                     console.trace(e);
                     writeErrorLog(e, false);
-                    log.error("monitor", "Please report to https://github.com/Igloczek/uptime-maku/issues");
+                    log.error("monitor", "Please report to https://github.com/iglo-tech/iglo.monitor/issues");
 
                     if (!isStale()) {
                         log.info("monitor", "Try to restart the monitor");

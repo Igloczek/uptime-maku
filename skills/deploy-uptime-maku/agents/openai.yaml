@@ -1,4 +1,0 @@
-interface:
-    display_name: "Deploy Uptime Maku"
-    short_description: "Deploy releases to the local Uptime Maku host"
-    default_prompt: "Use $deploy-uptime-maku to deploy a published Uptime Maku release to the local systemd instance with verification and rollback."

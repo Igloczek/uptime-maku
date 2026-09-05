@@ -41,12 +41,12 @@ jobs:
               run: |
                   bun scripts/build/build-binary.ts \
                     --target=bun-linux-x64 \
-                    --outfile=dist/releases/uptime-maku-linux-x64
-                  test -f dist/releases/uptime-maku-linux-x64
-                  ls -lh dist/releases/uptime-maku-linux-x64
+                    --outfile=dist/releases/iglo.monitor-linux-x64
+                  test -f dist/releases/iglo.monitor-linux-x64
+                  ls -lh dist/releases/iglo.monitor-linux-x64
 
             - name: Test compiled SMTP provider loading
-              run: UPTIME_MAKU_BINARY=dist/releases/uptime-maku-linux-x64 bun run test:notification-provider-binary
+              run: IGLO_MONITOR_BINARY=dist/releases/iglo.monitor-linux-x64 bun run test:notification-provider-binary
 
             - name: Test compiled auth, API keys, and metrics
-              run: UPTIME_MAKU_BINARY=dist/releases/uptime-maku-linux-x64 bun run test:auth-security-binary
+              run: IGLO_MONITOR_BINARY=dist/releases/iglo.monitor-linux-x64 bun run test:auth-security-binary

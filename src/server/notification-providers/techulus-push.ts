@@ -13,7 +13,7 @@ class TechulusPush extends NotificationProvider {
         const okMsg = "Sent Successfully.";
 
         let data = {
-            title: notification?.pushTitle?.length ? notification.pushTitle : "Uptime Maku",
+            title: notification?.pushTitle?.length ? notification.pushTitle : "iglo.monitor",
             body: msg,
             timeSensitive: notification.pushTimeSensitive ?? true,
         };

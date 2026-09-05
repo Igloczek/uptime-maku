@@ -7,7 +7,7 @@ Date: 2026-07-13
 
 ## Result
 
-The development-only SQLite snapshot restore now quiesces Uptime Maku before replacing the database. It stops
+The development-only SQLite snapshot restore now quiesces iglo.monitor before replacing the database. It stops
 background jobs, maintenance schedules, monitor timers, and every in-flight heartbeat; clears runtime, settings,
 status-page, uptime, and HTTP response caches; validates a private snapshot copy; atomically swaps the database; and
 rehydrates the runtime before responding. Restore requests share a FIFO promise queue, so concurrent E2E setup cannot

@@ -22,7 +22,7 @@ class Gotify extends NotificationProvider {
                 {
                     message: msg,
                     priority: notification.gotifyPriority || 8,
-                    title: "Uptime Maku",
+                    title: "iglo.monitor",
                 },
                 config
             );

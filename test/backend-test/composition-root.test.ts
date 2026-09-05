@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 import "@/server/model-registry";
 import { HeartbeatDataPlane } from "@/server/heartbeat-data-plane";
 import StatusPage from "@/server/model/status_page";
-import { UptimeMakuServer } from "@/server/uptime-maku-server";
+import { IgloMonitorServer } from "@/server/iglo-monitor-server";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
 import { Settings } from "@/server/settings";
 import { UP } from "@/constants";
@@ -17,7 +17,7 @@ import { createResponseCache } from "@/server/bun-response";
 const runtimes = [];
 
 async function createRuntime(name, timezone, trustProxy) {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), `uptime-maku-composition-${name}-`));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), `iglo-monitor-composition-${name}-`));
     const store = new BunSQLiteRedbean();
     await store.connect({
         sqlitePath: path.join(directory, "kuma.db"),
@@ -25,7 +25,7 @@ async function createRuntime(name, timezone, trustProxy) {
         testMode: true,
     });
     const settings = new Settings(store);
-    const server = new UptimeMakuServer(store, settings);
+    const server = new IgloMonitorServer(store, settings);
     const heartbeatData = new HeartbeatDataPlane(store);
     const responseCache = createResponseCache();
     const emissions = [];

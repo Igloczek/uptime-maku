@@ -7,7 +7,7 @@ import NotificationProvider from "@/server/notification-providers/notification-p
 import httpClient from "@/server/http-client";
 import packageJson from "@/package-meta";
 
-const uptimeMakuVersion = packageJson.version;
+const igloMonitorVersion = packageJson.version;
 
 class HaloPSA extends NotificationProvider {
     /**
@@ -43,13 +43,13 @@ class HaloPSA extends NotificationProvider {
              * @type {object}
              */
             const payload = {
-                title: "Uptime Maku Alert",
+                title: "iglo.monitor Alert",
                 status: status,
                 monitor: monitorJSON?.name || "No Monitor",
                 monitor_id: monitorJSON?.id || null,
                 message: msg,
                 timestamp: new Date().toISOString(),
-                uptime_maku_version: uptimeMakuVersion || "unknown",
+                iglo_monitor_version: igloMonitorVersion || "unknown",
             };
 
             // Send POST request to Halo PSA webhook

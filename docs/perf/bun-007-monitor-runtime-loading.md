@@ -4,7 +4,7 @@ Date: 2026-06-28
 
 ## Startup Import Surface
 
-Before BUN-007, startup eagerly instantiated optional monitor implementations in `src/server/uptime-maku-server.ts` and notification providers in `src/server/notification.ts`.
+Before BUN-007, startup eagerly instantiated optional monitor implementations in `src/server/iglo-monitor-server.ts` and notification providers in `src/server/notification.ts`.
 
 - Optional monitor implementations eagerly imported before: 23
 - Notification provider JS files eagerly imported before: 95, including the shared base class

@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 
 const projectRoot = path.join(import.meta.dirname, "../..");
-const binaryPath = process.env.UPTIME_MAKU_BINARY ? path.resolve(projectRoot, process.env.UPTIME_MAKU_BINARY) : null;
+const binaryPath = process.env.IGLO_MONITOR_BINARY ? path.resolve(projectRoot, process.env.IGLO_MONITOR_BINARY) : null;
 let appProcess;
 let dataDir;
 let sockets = [];
@@ -27,14 +27,14 @@ async function startApp() {
         : [process.execPath, "src/server/server.ts", `--port=${port}`, "--host=127.0.0.1", `--data-dir=${dataDir}`];
     appProcess = Bun.spawn(command, {
         cwd: projectRoot,
-        env: { ...process.env, NODE_ENV: "production", UPTIME_MAKU_WS_ORIGIN_CHECK: "bypass" },
+        env: { ...process.env, NODE_ENV: "production", IGLO_MONITOR_WS_ORIGIN_CHECK: "bypass" },
         stdout: process.env.DEBUG_MAINTENANCE_TEST ? "inherit" : "ignore",
         stderr: process.env.DEBUG_MAINTENANCE_TEST ? "inherit" : "ignore",
     });
     const deadline = Date.now() + 30_000;
     while (Date.now() < deadline) {
         if (appProcess.exitCode !== null) {
-            throw new Error(`Uptime Maku exited with ${appProcess.exitCode}`);
+            throw new Error(`iglo.monitor exited with ${appProcess.exitCode}`);
         }
         try {
             if ((await fetch(`http://127.0.0.1:${port}`)).ok) {
@@ -43,7 +43,7 @@ async function startApp() {
         } catch {}
         await Bun.sleep(50);
     }
-    throw new Error("Uptime Maku did not start");
+    throw new Error("iglo.monitor did not start");
 }
 
 async function stopApp() {
@@ -55,7 +55,7 @@ async function stopApp() {
         await Promise.race([
             appProcess.exited,
             Bun.sleep(5_000).then(() => {
-                throw new Error("Uptime Maku did not stop");
+                throw new Error("iglo.monitor did not stop");
             }),
         ]);
     }
@@ -171,7 +171,7 @@ function maintenance() {
 }
 
 async function setupStatusPage(slug) {
-    dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-"));
+    dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-maintenance-"));
     let port = await startApp();
     const bootstrap = await connect(port);
     expect((await bootstrap.request("setup", "owner", "owner-password")).ok).toBe(true);
@@ -210,7 +210,7 @@ afterEach(async () => {
 
 describe("maintenance ownership boundaries", () => {
     test("commits each mutation once when a malformed legacy timezone is present", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-maintenance-"));
         let port = await startApp();
         const bootstrap = await connect(port);
         expect((await bootstrap.request("setup", "owner", "owner-password")).ok).toBe(true);
@@ -482,7 +482,7 @@ describe("maintenance ownership boundaries", () => {
     }, 120_000);
 
     test("keeps schedules and every mutation scoped to their owner", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-maintenance-"));
         let port = await startApp();
         const bootstrap = await connect(port);
         expect((await bootstrap.request("setup", "owner", "owner-password")).ok).toBe(true);
@@ -580,7 +580,7 @@ describe("maintenance ownership boundaries", () => {
     }, 120_000);
 
     test("saves schedule and monitor, group, and status-page relations atomically", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-maintenance-"));
         let port = await startApp();
         const bootstrap = await connect(port);
         expect((await bootstrap.request("setup", "owner", "owner-password")).ok).toBe(true);
@@ -690,7 +690,7 @@ describe("maintenance ownership boundaries", () => {
     }, 120_000);
 
     test("does not revive paused cron schedules and keeps failed edits atomic", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-maintenance-"));
         let port = await startApp();
         const bootstrap = await connect(port);
         expect((await bootstrap.request("setup", "owner", "owner-password")).ok).toBe(true);
@@ -778,7 +778,7 @@ describe("maintenance ownership boundaries", () => {
                 return new Response("ok");
             },
         });
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-maintenance-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-maintenance-"));
         let port = await startApp();
         const bootstrap = await connect(port);
         expect((await bootstrap.request("setup", "owner", "owner-password")).ok).toBe(true);

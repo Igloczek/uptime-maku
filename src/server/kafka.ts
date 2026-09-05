@@ -12,7 +12,7 @@ import { Kafka } from "kafkajs";
  * @param {object} options Kafka client options. Contains ssl, clientId,
  * allowAutoTopicCreation and interval (interval defaults to 20,
  * allowAutoTopicCreation defaults to false, clientId defaults to
- * "Uptime Maku" and ssl defaults to false)
+ * "iglo.monitor" and ssl defaults to false)
  * @param {object} saslOptions Options for kafka client
  * Authentication (SASL) (defaults to {})
  * @returns {Promise<string>} Status message
@@ -23,7 +23,7 @@ export function kafkaProducerAsync(brokers, topic, message, options = {}, saslOp
         timeout = interval * 0.8,
         allowAutoTopicCreation = false,
         ssl = false,
-        clientId = "Uptime Maku",
+        clientId = "iglo.monitor",
         connectionTimeout = 1,
     } = options;
     const timeoutMs = timeout * 1000;

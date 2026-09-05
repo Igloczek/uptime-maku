@@ -34,7 +34,7 @@ describe("SystemServiceMonitorType", () => {
         runCommandSpy.mockResolvedValue({ code: 0, stdout: "active\n", stderr: "" });
 
         const monitor = {
-            system_service_name: "uptime-maku.service",
+            system_service_name: "iglo-monitor.service",
             timeout: 2,
         };
 
@@ -42,7 +42,7 @@ describe("SystemServiceMonitorType", () => {
 
         expect(heartbeat.status).toBe(UP);
         expect(heartbeat.msg.includes("is running")).toBeTruthy();
-        expect(runCommandSpy).toHaveBeenCalledWith("systemctl", ["is-active", "uptime-maku.service"], {
+        expect(runCommandSpy).toHaveBeenCalledWith("systemctl", ["is-active", "iglo-monitor.service"], {
             timeout: 2000,
         });
     });

@@ -16,21 +16,21 @@ class Splunk extends NotificationProvider {
     async send(notification, msg, monitorJSON = null, heartbeatJSON = null) {
         try {
             if (heartbeatJSON == null) {
-                const title = "Uptime Maku Alert";
+                const title = "iglo.monitor Alert";
                 const monitor = {
                     type: "ping",
-                    url: "Uptime Maku Test Button",
+                    url: "iglo.monitor Test Button",
                 };
                 return this.postNotification(notification, title, msg, monitor, "trigger");
             }
 
             if (heartbeatJSON.status === UP) {
-                const title = "Uptime Maku Monitor ✅ Up";
+                const title = "iglo.monitor Monitor ✅ Up";
                 return this.postNotification(notification, title, heartbeatJSON.msg, monitorJSON, "recovery");
             }
 
             if (heartbeatJSON.status === DOWN) {
-                const title = "Uptime Maku Monitor 🔴 Down";
+                const title = "iglo.monitor Monitor 🔴 Down";
                 return this.postNotification(notification, title, heartbeatJSON.msg, monitorJSON, "trigger");
             }
         } catch (error) {
@@ -91,15 +91,15 @@ class Splunk extends NotificationProvider {
             data: {
                 message_type: eventAction,
                 state_message: `[${title}] [${monitorUrl}] ${body}`,
-                entity_display_name: "Uptime Maku Alert: " + monitorInfo.name,
+                entity_display_name: "iglo.monitor Alert: " + monitorInfo.name,
                 routing_key: notification.pagerdutyIntegrationKey,
-                entity_id: "Uptime Maku/" + monitorInfo.id,
+                entity_id: "iglo.monitor/" + monitorInfo.id,
             },
         };
 
         const baseURL = await this.settings.get("primaryBaseURL");
         if (baseURL && monitorInfo) {
-            options.client = "Uptime Maku";
+            options.client = "iglo.monitor";
             options.client_url = baseURL + getMonitorRelativeURL(monitorInfo.id);
         }
 

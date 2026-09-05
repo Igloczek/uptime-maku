@@ -29,7 +29,7 @@ describe("notification provider compile-safe loading", () => {
 
     test("compiled artifact loads every monitor and notification provider factory", async () => {
         const registryKeys = Object.keys(NOTIFICATION_PROVIDER_REGISTRY);
-        const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-loader-smoke-"));
+        const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-loader-smoke-"));
         const outputPath = path.join(outputDir, "loader-smoke");
 
         try {
@@ -83,11 +83,11 @@ describe("notification provider compile-safe loading", () => {
                     smtpFrom: "test@example.com",
                     smtpTo: "dest@example.com",
                 },
-                "Uptime Maku Test"
+                "iglo.monitor Test"
             );
 
             expect(result).toBe("Sent Successfully.");
-            expect(captured).toEqual({ type: "smtp", msg: "Uptime Maku Test" });
+            expect(captured).toEqual({ type: "smtp", msg: "iglo.monitor Test" });
         } finally {
             provider.send = originalSend;
         }

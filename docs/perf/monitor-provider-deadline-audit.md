@@ -69,7 +69,7 @@ entering the cache, and a timed-out shared browser fails its peers consistently 
 | RADIUS                                      | The configured budget is split across the initial UDP request and one retry.                                                                                              | The shared UDP socket closes when a response, error, or final timeout settles the operation.                                                                                      |
 | Kafka producer                              | Connect and request limits fit inside one overall timer; library retries are disabled.                                                                                    | The producer disconnects after success, failure, or overall timeout.                                                                                                              |
 | DNS                                         | Half of the budget resolves configured resolver hostnames and half performs the requested DNS lookup.                                                                     | Each `Resolver` is cancelled at its phase deadline and its timer is cleared.                                                                                                      |
-| GameDig                                     | `attemptTimeout` and `socketTimeout` both derive from the monitor timeout.                                                                                                | GameDig owns the per-attempt socket lifecycle; no independent socket handle is exposed to Uptime Maku.                                                                             |
+| GameDig                                     | `attemptTimeout` and `socketTimeout` both derive from the monitor timeout.                                                                                                | GameDig owns the per-attempt socket lifecycle; no independent socket handle is exposed to iglo.monitor.                                                                           |
 | Globalping ping, HTTP, DNS                  | One deadline covers HTTP-subtype OAuth, measurement creation, one HTTP 500 retry, and polling. Each client/fetch receives the remaining time.                             | SDK requests use abortable fetch timeouts; polling stops at the same deadline.                                                                                                    |
 | gRPC keyword                                | The unary RPC receives a native gRPC deadline.                                                                                                                            | The client is closed in `finally`; expiry cancels the call and the loopback server observes cancellation.                                                                         |
 | MongoDB                                     | Connect, server-selection, socket, and command limits share the configured budget; the command receives the remaining time.                                               | The client is closed in `finally`.                                                                                                                                                |
@@ -161,7 +161,7 @@ Validation from the final code commit produced these results:
   `4de22dd4efdd5b7c2cb6d995586a5052f9e7ff0f3aaa9f7d2d381783fd05e9bb`.
 
 Cleanup was clean after the campaign: the Playwright data directory was removed, its result recorded no failed
-tests, ports `30001` and `51283` had no listeners, no Uptime Maku, Bun test-server, or Playwright process remained,
+tests, ports `30001` and `51283` had no listeners, no iglo.monitor, Bun test-server, or Playwright process remained,
 and the test suites left no owned containers. The only residual verification limits are the six opt-in public TLS
 cases. Lint and build completed with only the repository's baseline lint, deprecation, and bundle-size warnings.
 
@@ -201,7 +201,7 @@ Final follow-up verification:
 - Full Playwright E2E: `39/39` twice from fresh state, including SMTP test/save/edit/delete through a local sink.
 - Final executable SHA-256:
   `439b2d5cb63b3e968b61f57796618c0c99dd8f12eaabc4e6f4acf4201432be07`.
-- Cleanup: no owned Uptime Maku, Bun test-server, or Playwright process and no owned test container remained. Existing
+- Cleanup: no owned iglo.monitor, Bun test-server, or Playwright process and no owned test container remained. Existing
   containers from another workspace were left untouched.
 
 The Docker-backed cases use real protocol servers, not mocked clients. The updated multi-case MySQL, Microsoft SQL
@@ -227,7 +227,7 @@ The follow-up validation campaign produced these final results:
   native validity at retries/redirects 100 versus 101 and timeout 0.1 versus 0.01 seconds.
 - Frozen install, lint, and build succeeded; warnings were limited to the repository's existing lint, Vite
   dynamic-import, deprecation, and bundle-size categories.
-- Cleanup removed the Playwright data directory and baseline worktree; no owned Uptime Maku, Bun test-server,
+- Cleanup removed the Playwright data directory and baseline worktree; no owned iglo.monitor, Bun test-server,
   Playwright, listener, or test container remained. Unrelated Compose containers from another workspace were left
   untouched.
 - Final executable SHA-256:
@@ -543,7 +543,7 @@ warning categories.
 ### Browser process-identity follow-up
 
 The pending-acquisition cleanup still treated `kill(-pid, 0)` as proof that a captured process group belonged to
-Uptime Maku. A captured `ChildProcess` remained in `acquiredProcesses` after exit. If its numeric PID was later reused
+iglo.monitor. A captured `ChildProcess` remained in `acquiredProcesses` after exit. If its numeric PID was later reused
 by an unrelated process-group leader, reset, snapshot restore, or shutdown could send TERM and KILL to that foreign
 group. The deterministic RED commit `11840bd4` marks a captured child exited, simulates a reused group, and proves the
 old cleanup still signalled it. It also changes identity between the TERM grace period and KILL. Commit `68ce85c7`
@@ -552,9 +552,9 @@ to signal after leader exit would exchange the foreign-process bug for an orphan
 
 The POSIX launch path now inserts a minimal `/bin/sh` supervisor as the detached process-group leader. Chromium
 inherits Playwright's fd 3/4 transport, does not inherit the private fd 5 control channel, and the supervisor closes
-its own copies of fd 3/4. The supervisor deliberately remains alive after Chromium exits. Uptime Maku writes TERM or
+its own copies of fd 3/4. The supervisor deliberately remains alive after Chromium exits. iglo.monitor writes TERM or
 KILL to fd 5; the still-owned leader then signals its own group, so there is no numeric-PID ownership guess or
-check-to-signal race. EOF also kills the group if Uptime Maku exits without completing normal retirement. Exit and
+check-to-signal race. EOF also kills the group if iglo.monitor exits without completing normal retirement. Exit and
 close listeners immediately remove the captured record, concurrent cleanup shares one promise, and a lost control
 pipe fails closed instead of falling back to a PID. Windows retains its existing direct-child path.
 
@@ -584,7 +584,7 @@ Verification on the follow-up:
 - source and compiled real-Chrome settings, test, screenshot, pause/resume, relaunch, and shutdown passed repeatedly;
 - source pending snapshot success and rollback passed `2/2`, and the real-Chrome snapshot recovery passed `1/1`;
 - full Playwright E2E passed `40/40` twice from fresh state;
-- cleanup left no Uptime Maku, Chromium, supervisor, pending wrapper, or sleeping fixture process.
+- cleanup left no iglo.monitor, Chromium, supervisor, pending wrapper, or sleeping fixture process.
 
 Healthy same-owner reuse ran seven fresh processes with 100,000 mocked checks after 1,000 warmups. Its median changed
 from 15.604245 to 15.582110 microseconds/check (-0.022135 microseconds, -0.14%). The supervisor is created only on a
@@ -624,13 +624,13 @@ shutdown final:    2018.862, 2018.247, 2015.912, 2016.309, 2017.486, 2015.313, 2
 
 ## Residual limits
 
-- GameDig exposes per-attempt and socket timeouts, but no public top-level `AbortSignal` or socket handle. Uptime Maku
+- GameDig exposes per-attempt and socket timeouts, but no public top-level `AbortSignal` or socket handle. iglo.monitor
   therefore relies on the library's bounded internal cleanup rather than independently destroying the socket.
-- The operating-system `dns.lookup` used by Steam cannot be actively cancelled. Uptime Maku races it against the
+- The operating-system `dns.lookup` used by Steam cannot be actively cancelled. iglo.monitor races it against the
   shared deadline, ignores a late result, and does not allow it to publish a late heartbeat; the following HTTP and
   ping operations are abortable or killable.
 - Playwright does not expose native timeout options for `browser.newContext()` or `context.close()`, a public remote
-  force-disconnect API, or a public process handle from `chromium.launch()`. Uptime Maku supplies its own cancellation
+  force-disconnect API, or a public process handle from `chromium.launch()`. iglo.monitor supplies its own cancellation
   boundary, bounds close, and supervises the POSIX local process group over an owned pipe before handshake. This
   requires `/bin/sh`, which is present on the supported POSIX hosts. Pre-handshake tree escalation remains
   POSIX-specific; Windows uses direct-process cleanup and is excluded from the process-group fixture.

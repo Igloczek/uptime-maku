@@ -1,4 +1,0 @@
-interface:
-    display_name: "Release Uptime Maku"
-    short_description: "Prepare and publish verified Uptime Maku releases"
-    default_prompt: "Use $release-uptime-maku to prepare, publish, and verify the next Uptime Maku release."

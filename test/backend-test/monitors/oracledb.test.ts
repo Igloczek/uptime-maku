@@ -6,7 +6,7 @@ import { OracleDbMonitorType } from "@/server/monitor-types/oracledb";
 import { UP, PENDING } from "@/constants";
 
 const ORACLE_IMAGE = "gvenzl/oracle-free:23-slim-faststart";
-const APP_USER = "uptime-maku";
+const APP_USER = "iglo-monitor";
 const APP_USER_PASSWORD = "Oracle123";
 
 setDefaultTimeout(180_000);

@@ -58,7 +58,7 @@ async function settleWithin(promise, timeoutMs) {
 }
 
 async function createHangingGrpcServer() {
-    const protoPath = path.join(os.tmpdir(), `uptime-maku-timeout-${process.pid}-${Date.now()}.proto`);
+    const protoPath = path.join(os.tmpdir(), `iglo-monitor-timeout-${process.pid}-${Date.now()}.proto`);
     fs.writeFileSync(protoPath, testProto);
     const packageDefinition = protoLoader.loadSync(protoPath);
     const descriptor = grpc.loadPackageDefinition(packageDefinition);

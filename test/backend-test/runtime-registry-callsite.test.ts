@@ -12,7 +12,7 @@ import { HeartbeatDataPlane } from "@/server/heartbeat-data-plane";
 import DomainExpiry from "@/server/model/domain_expiry";
 import { MonitorRuntimeRegistry } from "@/server/monitor-runtime-registry";
 import { NotificationProviderRegistry } from "@/server/notification-provider-registry";
-import { UptimeMakuServer } from "@/server/uptime-maku-server";
+import { IgloMonitorServer } from "@/server/iglo-monitor-server";
 import { Prometheus } from "@/server/prometheus";
 import { handleApiRequest } from "@/server/routers/api-router";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
@@ -29,7 +29,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 async function createRuntime(name, type = "owned") {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), `uptime-maku-registry-${name}-`));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), `iglo-monitor-registry-${name}-`));
     const store = new BunSQLiteRedbean();
     await store.connect({
         sqlitePath: path.join(directory, "kuma.db"),
@@ -49,7 +49,7 @@ async function createRuntime(name, type = "owned") {
 }
 
 function createServer(owner, store, settings, monitorInstances = [], sends = []) {
-    const server = new UptimeMakuServer(store, settings);
+    const server = new IgloMonitorServer(store, settings);
     server.monitorRuntimeRegistry = new MonitorRuntimeRegistry(server, {
         owned: {
             load: async () => {

@@ -7,7 +7,7 @@ import packageJson from "@/package-meta";
 export const version = packageJson.version;
 
 const UPDATE_CHECKER_INTERVAL_MS = 1000 * 60 * 60 * 48;
-const UPDATE_CHECKER_LATEST_VERSION_URL = "https://api.github.com/repos/Igloczek/uptime-maku/releases/latest";
+const UPDATE_CHECKER_LATEST_VERSION_URL = "https://api.github.com/repos/iglo-tech/iglo.monitor/releases/latest";
 
 export function createVersionChecker(settings) {
     let latestVersion = null;

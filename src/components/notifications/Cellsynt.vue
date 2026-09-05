@@ -114,7 +114,7 @@ export default {
     },
     mounted() {
         this.$parent.notification.cellsyntOriginatortype ||= "alpha";
-        this.$parent.notification.cellsyntOriginator ||= "uptime-maku";
+        this.$parent.notification.cellsyntOriginator ||= "iglo-monitor";
     },
 };
 </script>

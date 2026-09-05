@@ -25,14 +25,14 @@ class Pushbullet extends NotificationProvider {
             if (heartbeatJSON == null) {
                 let data = {
                     type: "note",
-                    title: "Uptime Maku Alert",
+                    title: "iglo.monitor Alert",
                     body: msg,
                 };
                 await httpClient.post(url, data, config);
             } else if (heartbeatJSON["status"] === DOWN) {
                 let downData = {
                     type: "note",
-                    title: "Uptime Maku Alert: " + monitorJSON["name"],
+                    title: "iglo.monitor Alert: " + monitorJSON["name"],
                     body:
                         "[🔴 Down] " +
                         heartbeatJSON["msg"] +
@@ -42,7 +42,7 @@ class Pushbullet extends NotificationProvider {
             } else if (heartbeatJSON["status"] === UP) {
                 let upData = {
                     type: "note",
-                    title: "Uptime Maku Alert: " + monitorJSON["name"],
+                    title: "iglo.monitor Alert: " + monitorJSON["name"],
                     body:
                         "[✅ Up] " +
                         heartbeatJSON["msg"] +

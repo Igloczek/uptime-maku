@@ -19,12 +19,12 @@ test.describe("Example Spec", () => {
 
         await expect(page.getByTestId("monitor-type-select")).toBeVisible();
         await page.getByTestId("monitor-type-select").selectOption("http");
-        await page.getByTestId("friendly-name-input").fill("Local Uptime Maku");
+        await page.getByTestId("friendly-name-input").fill("Local iglo.monitor");
         await page.getByTestId("url-input").fill(serverUrl);
         await page.getByTestId("save-button").click();
         await page.waitForURL("/dashboard/*"); // wait for the monitor to be created
 
-        await expect(page.getByTestId("monitor-list")).toContainText("Local Uptime Maku");
+        await expect(page.getByTestId("monitor-list")).toContainText("Local iglo.monitor");
         await screenshot(testInfo, page);
     });
 
@@ -32,7 +32,7 @@ test.describe("Example Spec", () => {
         await page.goto("./dashboard");
         await login(page);
 
-        await expect(page.getByTestId("monitor-list")).not.toContainText("Local Uptime Maku");
+        await expect(page.getByTestId("monitor-list")).not.toContainText("Local iglo.monitor");
         await screenshot(testInfo, page);
     });
 });

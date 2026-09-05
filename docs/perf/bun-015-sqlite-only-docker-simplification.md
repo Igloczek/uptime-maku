@@ -8,7 +8,7 @@ Date: 2026-06-29
 - The first-run database setup no longer offers MariaDB, embedded MariaDB, or any other application database backend.
 - Docker now has one main runtime image built from the root `Dockerfile`.
 - The root `compose.yaml` is runtime convenience only; development runs directly with Bun.
-- The README now describes Uptime Maku as a performance-focused Uptime Maku derivative with fewer dependencies, fewer deployment knobs, and a smaller runtime surface.
+- The README now describes iglo.monitor as a performance-focused iglo.monitor derivative with fewer dependencies, fewer deployment knobs, and a smaller runtime surface.
 
 ## Removed Runtime Surface
 
@@ -18,7 +18,7 @@ Date: 2026-06-29
     - `compose.dev.yaml`
     - `docker-nscd.conf`
     - `docker-sudoers`
-- Removed the separate `extra/uptime-kuma-push/` helper image and the Docker push-monitor example that depended on `uptime-maku:push`.
+- Removed the separate `extra/uptime-kuma-push/` helper image and the Docker push-monitor example that depended on `iglo-monitor:push`.
 - Removed old nightly/rootless/PR-test/upload-artifact release image paths.
 - Removed embedded MariaDB application database code.
 - Removed MariaDB application database setup UI and setup API branches.
@@ -35,15 +35,15 @@ MySQL/MariaDB monitor support remains as monitor functionality. It is not an app
 Previous Bun cleanup image from `docs/perf/bun-014-final-bun-cleanup.md`:
 
 ```text
-uptime-maku:bun-final = 438054063 bytes
+iglo-monitor:bun-final = 438054063 bytes
 ```
 
 Current single local runtime image:
 
 ```bash
-docker build -f Dockerfile -t uptime-maku:local .
-docker run --rm uptime-maku:local --version
-docker image inspect uptime-maku:local --format '{{.Size}}'
+docker build -f Dockerfile -t iglo-monitor:local .
+docker run --rm iglo-monitor:local --version
+docker image inspect iglo-monitor:local --format '{{.Size}}'
 ```
 
 Pinned Docker base:
@@ -56,7 +56,7 @@ Result:
 
 ```text
 Bun runtime = 1.3.14
-uptime-maku:local = 277529464 bytes
+iglo-monitor:local = 277529464 bytes
 ```
 
 Delta:
@@ -119,10 +119,10 @@ Cleanup: local server stopped cleanly and `./data/sqlite-only-smoke` was removed
 Started:
 
 ```bash
-docker run --rm -d --name uptime-maku-sqlite-smoke \
+docker run --rm -d --name iglo-monitor-sqlite-smoke \
     -p 3016:3001 \
-    -v /tmp/uptime-maku-docker-sqlite-smoke:/app/data \
-    uptime-maku:local
+    -v /tmp/iglo-monitor-docker-sqlite-smoke:/app/data \
+    iglo-monitor:local
 ```
 
 HTTP check:
@@ -171,7 +171,7 @@ Mounted data directory contained:
 
 and a newly created `kuma.db`.
 
-Cleanup: Docker smoke container stopped and `/tmp/uptime-maku-docker-sqlite-smoke` was removed.
+Cleanup: Docker smoke container stopped and `/tmp/iglo-monitor-docker-sqlite-smoke` was removed.
 
 ## Validation
 
@@ -181,6 +181,6 @@ Cleanup: Docker smoke container stopped and `/tmp/uptime-maku-docker-sqlite-smok
 - `bun run build`: passed.
 - `bun run test:backend`: passed, 17 tests.
 - `bun test ./test/backend-test/test-migration.ts`: passed.
-- `docker build -f Dockerfile -t uptime-maku:local .`: passed.
+- `docker build -f Dockerfile -t iglo-monitor:local .`: passed.
 - Local browser smoke: passed.
 - Docker boot/healthcheck smoke: passed.

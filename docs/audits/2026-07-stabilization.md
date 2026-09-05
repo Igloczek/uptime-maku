@@ -5,7 +5,7 @@
 This record summarizes the stabilization range from `origin/master` at
 `4272bf3ff241f300f3dedc823f1960ff1cecec90` through `c11903d3b872ad46a56992a1399b7b27b811f1b8`.
 It is a map to the detailed evidence, not a new claim that one final command tested every historical revision.
-Finding origin is classified separately in [Why Uptime Maku exists](../why-uptime-maku.md).
+Finding origin is classified separately in [Why iglo.monitor exists](../why-iglo-monitor.md).
 
 The range contains 87 granular commits. Audit follow-ups preserve the deterministic RED test, minimal runtime fix,
 and documentation/measurement commits instead of rewriting them, because their separate SHAs are part of the

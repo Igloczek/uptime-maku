@@ -16,7 +16,7 @@ class FlashDuty extends NotificationProvider {
     async send(notification, msg, monitorJSON = null, heartbeatJSON = null) {
         try {
             if (heartbeatJSON == null) {
-                const title = "Uptime Maku Alert";
+                const title = "iglo.monitor Alert";
                 const monitor = {
                     type: "ping",
                     url: msg,
@@ -26,13 +26,13 @@ class FlashDuty extends NotificationProvider {
             }
 
             if (heartbeatJSON.status === UP) {
-                const title = "Uptime Maku Monitor ✅ Up";
+                const title = "iglo.monitor Monitor ✅ Up";
 
                 return this.postNotification(notification, title, heartbeatJSON.msg, monitorJSON, "Ok");
             }
 
             if (heartbeatJSON.status === DOWN) {
-                const title = "Uptime Maku Monitor 🔴 Down";
+                const title = "iglo.monitor Monitor 🔴 Down";
                 return this.postNotification(
                     notification,
                     title,
@@ -98,7 +98,7 @@ class FlashDuty extends NotificationProvider {
 
         const baseURL = await this.settings.get("primaryBaseURL");
         if (baseURL && monitorInfo) {
-            options.client = "Uptime Maku";
+            options.client = "iglo.monitor";
             options.client_url = baseURL + getMonitorRelativeURL(monitorInfo.id);
         }
 

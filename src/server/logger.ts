@@ -42,8 +42,8 @@ export class Logger {
     hideLog: Record<string, string[]> = { info: [], warn: [], error: [], debug: [] };
 
     constructor() {
-        if (typeof process !== "undefined" && process.env.UPTIME_MAKU_HIDE_LOG) {
-            const list = process.env.UPTIME_MAKU_HIDE_LOG.split(",").map((value) => value.toLowerCase());
+        if (typeof process !== "undefined" && process.env.IGLO_MONITOR_HIDE_LOG) {
+            const list = process.env.IGLO_MONITOR_HIDE_LOG.split(",").map((value) => value.toLowerCase());
 
             for (const pair of list) {
                 const values = pair.split(/_(.*)/s);
@@ -52,7 +52,7 @@ export class Logger {
                 }
             }
 
-            this.debug("server", "UPTIME_MAKU_HIDE_LOG is set");
+            this.debug("server", "IGLO_MONITOR_HIDE_LOG is set");
             this.debug("server", this.hideLog);
         }
     }
@@ -70,7 +70,7 @@ export class Logger {
         const levelLabel = level.toUpperCase();
         const now = dayjs.tz ? dayjs.tz(new Date()).format() : dayjs().format();
 
-        if (process.env.UPTIME_MAKU_LOG_FORMAT === "json") {
+        if (process.env.IGLO_MONITOR_LOG_FORMAT === "json") {
             const msgString = msg
                 .map((value) => {
                     if (typeof value === "string") {

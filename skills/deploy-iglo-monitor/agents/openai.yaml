@@ -1,0 +1,4 @@
+interface:
+    display_name: "Deploy iglo.monitor"
+    short_description: "Deploy releases to the local iglo.monitor host"
+    default_prompt: "Use $deploy-iglo-monitor to deploy a published iglo.monitor release to the local systemd instance with verification and rollback."

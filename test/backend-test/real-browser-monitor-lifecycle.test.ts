@@ -207,8 +207,8 @@ describe("real-browser monitor lifecycle", () => {
     });
 
     test("a changed local executable cannot reuse the browser launched for the old setting", async () => {
-        const originalAllowAll = process.env.UPTIME_MAKU_ALLOW_ALL_CHROME_EXEC;
-        process.env.UPTIME_MAKU_ALLOW_ALL_CHROME_EXEC = "1";
+        const originalAllowAll = process.env.IGLO_MONITOR_ALLOW_ALL_CHROME_EXEC;
+        process.env.IGLO_MONITOR_ALLOW_ALL_CHROME_EXEC = "1";
         const firstBrowser = successfulBrowser();
         const secondBrowser = successfulBrowser();
         chromium.launch.mockResolvedValueOnce(firstBrowser).mockResolvedValueOnce(secondBrowser);
@@ -226,9 +226,9 @@ describe("real-browser monitor lifecycle", () => {
             expect(firstBrowser.close).toHaveBeenCalledTimes(1);
         } finally {
             if (originalAllowAll === undefined) {
-                delete process.env.UPTIME_MAKU_ALLOW_ALL_CHROME_EXEC;
+                delete process.env.IGLO_MONITOR_ALLOW_ALL_CHROME_EXEC;
             } else {
-                process.env.UPTIME_MAKU_ALLOW_ALL_CHROME_EXEC = originalAllowAll;
+                process.env.IGLO_MONITOR_ALLOW_ALL_CHROME_EXEC = originalAllowAll;
             }
         }
     });
@@ -334,7 +334,7 @@ describe("real-browser monitor lifecycle", () => {
     test.skipIf(process.platform === "win32")(
         "a captured browser keeps an owned group leader until orphan descendants retire",
         async () => {
-            const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-browser-owner-"));
+            const directory = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-browser-owner-"));
             const pidFile = path.join(directory, "descendant.pid");
             let launched;
             chromium.launch.mockImplementation(async () => {
@@ -343,7 +343,7 @@ describe("real-browser monitor lifecycle", () => {
                     [
                         "-c",
                         'sleep 300 & printf "%s\\n" "$!" > "$1"',
-                        "uptime-maku-browser-fixture",
+                        "iglo-monitor-browser-fixture",
                         pidFile,
                         "--remote-debugging-pipe",
                     ],
@@ -463,8 +463,8 @@ describe("real-browser monitor lifecycle", () => {
     });
 
     test("a pending local configuration retires before its replacement launches", async () => {
-        const originalAllowAll = process.env.UPTIME_MAKU_ALLOW_ALL_CHROME_EXEC;
-        process.env.UPTIME_MAKU_ALLOW_ALL_CHROME_EXEC = "1";
+        const originalAllowAll = process.env.IGLO_MONITOR_ALLOW_ALL_CHROME_EXEC;
+        process.env.IGLO_MONITOR_ALLOW_ALL_CHROME_EXEC = "1";
         const firstLaunch = deferred();
         const firstBrowser = successfulBrowser();
         const replacement = successfulBrowser();
@@ -491,9 +491,9 @@ describe("real-browser monitor lifecycle", () => {
             expect(replacement.close).not.toHaveBeenCalled();
         } finally {
             if (originalAllowAll === undefined) {
-                delete process.env.UPTIME_MAKU_ALLOW_ALL_CHROME_EXEC;
+                delete process.env.IGLO_MONITOR_ALLOW_ALL_CHROME_EXEC;
             } else {
-                process.env.UPTIME_MAKU_ALLOW_ALL_CHROME_EXEC = originalAllowAll;
+                process.env.IGLO_MONITOR_ALLOW_ALL_CHROME_EXEC = originalAllowAll;
             }
         }
     });

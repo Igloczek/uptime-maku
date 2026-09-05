@@ -54,7 +54,7 @@ class GoogleChat extends NotificationProvider {
             }
 
             let chatHeader = {
-                title: "Uptime Maku Alert",
+                title: "iglo.monitor Alert",
             };
 
             if (monitorJSON && heartbeatJSON) {
@@ -100,7 +100,7 @@ class GoogleChat extends NotificationProvider {
                     buttonList: {
                         buttons: [
                             {
-                                text: "Visit Uptime Maku",
+                                text: "Visit iglo.monitor",
                                 onClick: {
                                     openLink: {
                                         url: baseURL + urlPath,

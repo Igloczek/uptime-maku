@@ -76,7 +76,7 @@ class NotificationProvider {
      */
     async renderTemplate(template, msg, monitorJSON, heartbeatJSON) {
         const engine = new Liquid({
-            root: "./no-such-directory-uptime-maku",
+            root: "./no-such-directory-iglo-monitor",
             relativeReference: false,
             dynamicPartials: false,
         });

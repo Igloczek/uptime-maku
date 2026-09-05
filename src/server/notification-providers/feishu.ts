@@ -37,7 +37,7 @@ class Feishu extends NotificationProvider {
                         header: {
                             title: {
                                 tag: "plain_text",
-                                content: "Uptime Maku Alert: [Down] " + monitorJSON["name"],
+                                content: "iglo.monitor Alert: [Down] " + monitorJSON["name"],
                             },
                             template: "red",
                         },
@@ -67,7 +67,7 @@ class Feishu extends NotificationProvider {
                         header: {
                             title: {
                                 tag: "plain_text",
-                                content: "Uptime Maku Alert: [UP] " + monitorJSON["name"],
+                                content: "iglo.monitor Alert: [UP] " + monitorJSON["name"],
                             },
                             template: "green",
                         },

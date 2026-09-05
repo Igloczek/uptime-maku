@@ -2,7 +2,7 @@
 
 ## Repository Identity
 
-Uptime Maku is an independently maintained architectural rewrite derived from the Uptime Kuma v2.4.0 codebase. It is not an upstream-parity fork and is not intended to operate as a public open-source community project.
+iglo.monitor is an independently maintained architectural rewrite derived from the Uptime Kuma v2.4.0 codebase. It is not an upstream-parity fork and is not intended to operate as a public open-source community project.
 
 The repository is published "as is": no formal support process, no issue triage process, no release promise, and no community governance files.
 
@@ -30,7 +30,7 @@ The repository is published "as is": no formal support process, no issue triage 
 - Prefer `@/` path-alias imports across backend, frontend, scripts, and tests. Do not introduce relative imports (`./`, `../`) unless there is no practical alternative (for example auto-generated asset bundles, JSON `import ... with { type: "json" }` from a nearby file, or a tool that cannot resolve aliases).
 - Import from the module that owns a symbol. Do not add barrel files, transitional re-export barrels, generic registries, or a new compatibility facade unless a real external contract requires one.
 - Newly touched core modules should not add `@ts-nocheck`, broad `any` facades, or process-global state. Type existing runtime contracts incrementally instead of redesigning payloads for type convenience.
-- Preserve persisted field names and external socket/API contracts unless the task includes an explicit migration plan.
+- Renames are intentionally breaking for configuration and external payloads; do not retain aliases. The only compatibility path is the automatic Uptime Kuma SQLite importer, while the `kuma.db` filename and tested upgrade path remain fixed.
 - Do not add npm or Node fallback paths for default runtime, package-manager, or verification workflows.
 - Do not restore upstream community files such as `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, issue templates, PR templates, stale workflows, release workflows, or sponsor/funding files.
 - Dependency update automation uses Renovate via `renovate.json`; do not restore Dependabot.
@@ -62,7 +62,7 @@ bun run test-e2e
 Current backend smoke start:
 
 ```bash
-./uptime-maku --port=3001 --data-dir=./data/smoke
+./iglo.monitor --port=3001 --data-dir=./data/smoke
 ```
 
 Development smoke start:

@@ -33,7 +33,7 @@ function passwordStrength(password) {
     return { value };
 }
 
-console.log("== Uptime Maku Reset Password Tool ==");
+console.log("== iglo.monitor Reset Password Tool ==");
 
 const rl = readline.createInterface({
     input: process.stdin,

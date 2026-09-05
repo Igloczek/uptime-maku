@@ -36,7 +36,7 @@ class Ntfy extends NotificationProvider {
             // If heartbeatJSON is null, assume non monitoring notification (Certificate warning) or testing.
             if (heartbeatJSON == null) {
                 // Default values for test notification
-                let title = (monitorJSON?.name || notification.ntfytopic) + " [Uptime Maku]";
+                let title = (monitorJSON?.name || notification.ntfytopic) + " [iglo.monitor]";
                 let message = msg;
 
                 // Apply custom templates from notification settings if enabled
@@ -90,7 +90,7 @@ class Ntfy extends NotificationProvider {
             }
 
             // Default values
-            let title = monitorJSON.name + " " + status + " [Uptime Maku]";
+            let title = monitorJSON.name + " " + status + " [iglo.monitor]";
             let message = heartbeatJSON.msg;
 
             // Apply custom templates from notification settings if enabled

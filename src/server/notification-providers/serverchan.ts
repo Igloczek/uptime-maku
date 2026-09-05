@@ -44,12 +44,12 @@ class ServerChan extends NotificationProvider {
      * @returns {string} Formatted title
      */
     checkStatus(heartbeatJSON, monitorJSON) {
-        let title = "Uptime Maku Message";
+        let title = "iglo.monitor Message";
         if (heartbeatJSON != null && heartbeatJSON["status"] === UP) {
-            title = "Uptime Maku Monitor Up " + monitorJSON["name"];
+            title = "iglo.monitor Monitor Up " + monitorJSON["name"];
         }
         if (heartbeatJSON != null && heartbeatJSON["status"] === DOWN) {
-            title = "Uptime Maku Monitor Down " + monitorJSON["name"];
+            title = "iglo.monitor Monitor Down " + monitorJSON["name"];
         }
         return title;
     }

@@ -7,7 +7,7 @@ import net from "net";
 import { parseTlsAlertNumber, getTlsAlertName } from "@/server/monitor-types/tcp";
 
 const isPublicNetworkTestsEnabled = (value) => value === "1";
-const publicNetworkTest = isPublicNetworkTestsEnabled(process.env.UPTIME_MAKU_PUBLIC_NETWORK_TESTS) ? test : test.skip;
+const publicNetworkTest = isPublicNetworkTestsEnabled(process.env.IGLO_MONITOR_PUBLIC_NETWORK_TESTS) ? test : test.skip;
 
 describe("TCP Monitor", () => {
     /**

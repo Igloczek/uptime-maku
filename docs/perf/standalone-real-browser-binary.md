@@ -16,7 +16,7 @@ playwright-core is required for real-browser monitors: Cannot find package 'play
 
 The release build now embeds `playwright-core`. The two optional `chromium-bidi/*` imports in Playwright 1.61's
 prebuilt `coreBundle.js` remain external because that package is not shipped by Playwright and Bun otherwise rejects
-the build. Uptime Maku uses Playwright's Chromium CDP launch/connect paths, not the BiDi mapper.
+the build. iglo.monitor uses Playwright's Chromium CDP launch/connect paths, not the BiDi mapper.
 
 ## Measurements
 
@@ -41,7 +41,7 @@ embedded timing is the median of three fresh standalone processes after the host
 - Source and normal compiled lifecycle: `1/1` each with the same 22 assertions.
 - Compiled SMTP production socket flow: `1 pass / 6 assertions`.
 - Compiled auth/security: `13 pass / 424 assertions`.
-- No Chrome profile or Uptime Maku browser-supervisor process remained after the repeated standalone runs.
+- No Chrome profile or iglo.monitor browser-supervisor process remained after the repeated standalone runs.
 
 One first post-build macOS Chrome launch exceeded the existing five-second acquisition cap; the next standalone run
 and the required three-run fresh-process repeat passed. Linux release validation should retain the same standalone

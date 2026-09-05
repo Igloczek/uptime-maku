@@ -208,7 +208,7 @@ describe("StatusPage", () => {
     });
 
     test("keeps slug and domain mappings isolated between explicit stores", async () => {
-        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-status-page-stores-"));
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-status-page-stores-"));
         const first = new BunSQLiteRedbean();
         const second = new BunSQLiteRedbean();
         try {
@@ -253,7 +253,7 @@ describe("StatusPage", () => {
     });
 
     test("rolls back when the first domain-mapping statement fails", async () => {
-        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-status-page-transaction-"));
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-status-page-transaction-"));
         const store = new BunSQLiteRedbean();
         await store.connect({
             sqlitePath: path.join(dir, "kuma.db"),
@@ -291,7 +291,7 @@ describe("StatusPage", () => {
     });
 
     test("keeps status page config and cache unchanged when CNAME replacement rolls back", async () => {
-        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-status-page-save-"));
+        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-status-page-save-"));
         const store = new BunSQLiteRedbean();
         const handlers = new Map();
         const domains = {};
@@ -401,7 +401,7 @@ describe("StatusPage", () => {
     });
 
     test("reloads the owned domain cache immediately after deleting a status page", async () => {
-        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-status-page-delete-"));
+        const directory = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-status-page-delete-"));
         const store = new BunSQLiteRedbean();
         const handlers = new Map();
         const domains = {};

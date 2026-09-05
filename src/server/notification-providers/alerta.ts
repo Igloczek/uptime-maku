@@ -24,11 +24,11 @@ class Alerta extends NotificationProvider {
                 environment: notification.alertaEnvironment,
                 severity: "critical",
                 correlate: [],
-                service: ["Uptime Maku"],
+                service: ["iglo.monitor"],
                 value: "Timeout",
-                tags: ["uptime-maku"],
+                tags: ["iglo-monitor"],
                 attributes: {},
-                origin: "uptime-maku",
+                origin: "iglo-monitor",
                 type: "exceptionAlert",
             };
 
@@ -39,7 +39,7 @@ class Alerta extends NotificationProvider {
                     {
                         event: "msg",
                         text: msg,
-                        group: "uptime-maku-msg",
+                        group: "iglo-monitor-msg",
                         resource: "Message",
                     },
                     data
@@ -51,7 +51,7 @@ class Alerta extends NotificationProvider {
                     {
                         correlate: ["service_up", "service_down"],
                         event: monitorJSON["type"],
-                        group: "uptime-maku-" + monitorJSON["type"],
+                        group: "iglo-monitor-" + monitorJSON["type"],
                         resource: monitorJSON["name"],
                     },
                     data

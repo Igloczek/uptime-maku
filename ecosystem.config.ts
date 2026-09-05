@@ -1,7 +1,7 @@
 export default {
     apps: [
         {
-            name: "uptime-maku",
+            name: "iglo.monitor",
             script: "./src/server/server.ts",
             interpreter: "bun",
         },

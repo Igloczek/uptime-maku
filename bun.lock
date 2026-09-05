@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "uptime-maku",
+      "name": "iglo.monitor",
       "dependencies": {
         "@grpc/grpc-js": "~1.8.22",
         "chardet": "~1.4.0",

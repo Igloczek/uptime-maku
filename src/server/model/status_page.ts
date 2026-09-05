@@ -127,7 +127,7 @@ class StatusPage extends BeanModel {
         const { Feed } = await import("feed");
 
         // Use custom RSS title if set, otherwise fall back to status page title
-        let feedTitle = "Uptime Maku RSS Feed";
+        let feedTitle = "iglo.monitor RSS Feed";
         if (statusPage.rss_title) {
             feedTitle = statusPage.rss_title;
         } else if (statusPage.title) {

@@ -1,6 +1,6 @@
 // @ts-nocheck
 /*
- * Uptime Maku Server
+ * iglo.monitor Server
  * bun "src/server/server.ts"
  * DO NOT require("./server") in other modules, it likely creates circular dependency!
  */
@@ -52,7 +52,7 @@ function passwordStrength(password) {
     return { value };
 }
 import { verify as verifyTotp, encodeSecretForUri } from "@/server/totp";
-import { UptimeMakuServer } from "@/server/uptime-maku-server";
+import { IgloMonitorServer } from "@/server/iglo-monitor-server";
 import { listenWithBunServe } from "@/server/bun-http-server";
 import Monitor from "@/server/model/monitor";
 import User from "@/server/model/user";
@@ -95,19 +95,19 @@ import { clearResponseCache, createResponseCache } from "@/server/bun-response";
 import { chartSocketHandler } from "@/server/socket-handlers/chart-socket-handler";
 import { writeErrorLog } from "@/server/error-log";
 
-console.log("Welcome to Uptime Maku");
+console.log("Welcome to iglo.monitor");
 
 // As the log function need to use dayjs, it should be very top
 dayjs.extend(customParseFormat);
 
 if (!isBunRuntime()) {
-    console.error("Error: uptime-maku now requires Bun. Start it with `bun src/server/server.ts`.");
+    console.error("Error: iglo.monitor now requires Bun. Start it with `bun src/server/server.ts`.");
     process.exit(1);
 }
 const runtimeInfo = getRuntimeInfo();
 console.log(`Your ${runtimeInfo.name} version: ${runtimeInfo.version}`);
 
-process.title = "uptime-maku";
+process.title = "iglo.monitor";
 
 log.debug("server", "Arguments");
 log.debug("server", args);
@@ -116,22 +116,22 @@ if (!process.env.NODE_ENV) {
     process.env.NODE_ENV = "production";
 }
 
-if (!process.env.UPTIME_MAKU_WS_ORIGIN_CHECK) {
-    process.env.UPTIME_MAKU_WS_ORIGIN_CHECK = "cors-like";
+if (!process.env.IGLO_MONITOR_WS_ORIGIN_CHECK) {
+    process.env.IGLO_MONITOR_WS_ORIGIN_CHECK = "cors-like";
 }
 
 log.info("server", "Env: " + process.env.NODE_ENV);
-log.debug("server", "Inside Container: " + (process.env.UPTIME_MAKU_IS_CONTAINER === "1"));
+log.debug("server", "Inside Container: " + (process.env.IGLO_MONITOR_IS_CONTAINER === "1"));
 
-if (process.env.UPTIME_MAKU_WS_ORIGIN_CHECK === "bypass") {
-    log.warn("server", "WebSocket Origin Check: " + process.env.UPTIME_MAKU_WS_ORIGIN_CHECK);
+if (process.env.IGLO_MONITOR_WS_ORIGIN_CHECK === "bypass") {
+    log.warn("server", "WebSocket Origin Check: " + process.env.IGLO_MONITOR_WS_ORIGIN_CHECK);
 }
 
-if (process.env.UPTIME_MAKU_DEBUG_INSPECTOR === "1") {
-    log.warn("server", "UPTIME_MAKU_DEBUG_INSPECTOR is not supported under Bun. Start Bun with --inspect instead.");
+if (process.env.IGLO_MONITOR_DEBUG_INSPECTOR === "1") {
+    log.warn("server", "IGLO_MONITOR_DEBUG_INSPECTOR is not supported under Bun. Start Bun with --inspect instead.");
 }
 
-log.info("server", "Uptime Maku Version:", version);
+log.info("server", "iglo.monitor Version:", version);
 
 log.info("server", "Loading modules");
 
@@ -140,7 +140,7 @@ log.debug("server", "Importing 2FA Modules");
 
 const store = new BunSQLiteRedbean();
 const settings = new Settings(store);
-const server = new UptimeMakuServer(store, settings);
+const server = new IgloMonitorServer(store, settings);
 await server.loadFrontendAssets();
 const databaseMaintenance = new DatabaseMaintenanceCoordinator();
 const heartbeatData = new HeartbeatDataPlane(store);
@@ -169,8 +169,8 @@ if (hostname) {
 const port = config.port;
 
 const disableFrameSameOrigin =
-    !!process.env.UPTIME_MAKU_DISABLE_FRAME_SAMEORIGIN || args["disable-frame-sameorigin"] || false;
-const cloudflaredToken = args["cloudflared-token"] || process.env.UPTIME_MAKU_CLOUDFLARED_TOKEN || undefined;
+    !!process.env.IGLO_MONITOR_DISABLE_FRAME_SAMEORIGIN || args["disable-frame-sameorigin"] || false;
+const cloudflaredToken = args["cloudflared-token"] || process.env.IGLO_MONITOR_CLOUDFLARED_TOKEN || undefined;
 
 // 2FA / notp verification defaults
 const twoFAVerifyOptions = {
@@ -419,7 +419,7 @@ let needSetup = false;
                     let newSecret = genSecret();
                     let encodedSecret = encodeSecretForUri(newSecret);
 
-                    let uri = `otpauth://totp/Uptime Maku:${user.username}?secret=${encodedSecret}`;
+                    let uri = `otpauth://totp/iglo.monitor:${user.username}?secret=${encodedSecret}`;
 
                     await store.exec("UPDATE `user` SET twofa_secret = ?, twofa_last_token = NULL WHERE id = ? ", [
                         newSecret,
@@ -605,7 +605,7 @@ let needSetup = false;
 
                 if (!needSetup || setupInProgress) {
                     throw new Error(
-                        "Uptime Maku has been initialized. If you want to run setup again, please delete the database."
+                        "iglo.monitor has been initialized. If you want to run setup again, please delete the database."
                     );
                 }
 
@@ -613,7 +613,7 @@ let needSetup = false;
                 try {
                     if ((await store.count("user")) !== 0) {
                         throw new Error(
-                            "Uptime Maku has been initialized. If you want to run setup again, please delete the database."
+                            "iglo.monitor has been initialized. If you want to run setup again, please delete the database."
                         );
                     }
 
@@ -630,7 +630,7 @@ let needSetup = false;
 
                     if (!inserted) {
                         throw new Error(
-                            "Uptime Maku has been initialized. If you want to run setup again, please delete the database."
+                            "iglo.monitor has been initialized. If you want to run setup again, please delete the database."
                         );
                     }
 
@@ -1763,7 +1763,7 @@ async function initDatabase(testMode = false) {
         log.debug("server", "Load JWT secret from database.");
     }
 
-    // If there is no record in user table, it is a new Uptime Maku instance, need to setup
+    // If there is no record in user table, it is a new iglo.monitor instance, need to setup
     if ((await store.count("user")) === 0) {
         log.info("server", "No user, need setup");
         needSetup = true;
@@ -1905,7 +1905,7 @@ process.on("memoryPressure", () => {
 let unexpectedErrorHandler = (error, promise) => {
     console.trace(error);
     writeErrorLog(error, false);
-    console.error("If you keep encountering errors, please report to https://github.com/Igloczek/uptime-maku/issues");
+    console.error("If you keep encountering errors, please report to https://github.com/iglo-tech/iglo.monitor/issues");
 };
 process.addListener("unhandledRejection", unexpectedErrorHandler);
 process.addListener("uncaughtException", unexpectedErrorHandler);

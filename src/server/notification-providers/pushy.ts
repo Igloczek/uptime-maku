@@ -19,7 +19,7 @@ class Pushy extends NotificationProvider {
                 {
                     to: notification.pushyToken,
                     data: {
-                        message: "Uptime Maku",
+                        message: "iglo.monitor",
                     },
                     notification: {
                         body: msg,

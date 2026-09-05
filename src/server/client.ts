@@ -128,7 +128,7 @@ async function sendInfo(server, settings, versionChecker, socket, hideVersion = 
     if (!hideVersion) {
         info.version = versionChecker.version;
         info.latestVersion = versionChecker.latestVersion;
-        info.isContainer = process.env.UPTIME_MAKU_IS_CONTAINER === "1";
+        info.isContainer = process.env.IGLO_MONITOR_IS_CONTAINER === "1";
         info.dbType = "sqlite";
         info.runtime = getRuntimeInfo();
     }

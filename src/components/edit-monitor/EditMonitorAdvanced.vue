@@ -117,7 +117,7 @@
         <input id="cache-bust" v-model="monitor.cacheBust" class="form-check-input" type="checkbox" value="" />
         <label class="form-check-label" for="cache-bust">
             <i18n-t tag="label" keypath="cacheBusterParam" class="form-check-label" for="cache-bust">
-                <code>uptime_maku_cachebuster</code>
+                <code>iglo_monitor_cachebuster</code>
             </i18n-t>
         </label>
         <div class="form-text">

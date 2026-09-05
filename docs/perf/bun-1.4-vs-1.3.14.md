@@ -1,8 +1,8 @@
-# Bun 1.3.14 vs 1.4.0 on Uptime Maku
+# Bun 1.3.14 vs 1.4.0 on iglo.monitor
 
 Measured 2026-08-20 on Darwin `25.5.0`, `arm64`, one host. These numbers must not be compared with another host.
 
-This is not a pure runtime swap of identical source. The 1.3.14 side is `64db9070` compiled and run with Bun `1.3.14`. The 1.4.0 side is `9dabd155` (`v1.0.0-beta.3`) compiled and run with Bun `1.4.0`. Application changes on the 1.4.0 side include the `Bun.cron` job adapter, `process.on("memoryPressure")` cache drop, and related test/runtime wiring. The `minimal-bun` and `minimal-bun-serve` probes are synthetic runtime-only processes and do not load Uptime Maku.
+This is not a pure runtime swap of identical source. The 1.3.14 side is `64db9070` compiled and run with Bun `1.3.14`. The 1.4.0 side is `9dabd155` (`v1.0.0-beta.3`) compiled and run with Bun `1.4.0`. Application changes on the 1.4.0 side include the `Bun.cron` job adapter, `process.on("memoryPressure")` cache drop, and related test/runtime wiring. The `minimal-bun` and `minimal-bun-serve` probes are synthetic runtime-only processes and do not load iglo.monitor.
 
 Raw JSON:
 
@@ -30,20 +30,20 @@ Idle CPU and load used the same compiled Darwin arm64 binaries on unused loopbac
 
 ## Startup and memory (medians)
 
-| Variant                     | Metric             |   Bun 1.3.14 |    Bun 1.4.0 |                 Delta |
-| --------------------------- | ------------------ | -----------: | -----------: | --------------------: |
-| Minimal Bun probe           | Readiness          |        51 ms |        51 ms |                     0 |
-|                             | RSS                |   23,760 KiB |    9,328 KiB |  −14,432 KiB (−60.7%) |
-|                             | Physical footprint |  7,423,872 B |  5,785,024 B | −1,638,848 B (−22.1%) |
-| Minimal Bun.serve probe     | Readiness          |        69 ms |        53 ms |       −16 ms (−23.2%) |
-|                             | RSS                |   27,616 KiB |   14,128 KiB |  −13,488 KiB (−48.8%) |
-|                             | Physical footprint | 10,028,800 B |  6,440,384 B | −3,588,416 B (−35.8%) |
-| Uptime Maku source backend  | Readiness          |       116 ms |       105 ms |        −11 ms (−9.5%) |
-|                             | RSS                |   70,288 KiB |   58,368 KiB |  −11,920 KiB (−17.0%) |
-|                             | Physical footprint | 30,116,480 B | 27,560,000 B |  −2,556,480 B (−8.5%) |
-| Uptime Maku compiled binary | Readiness          |       106 ms |       107 ms |                 +1 ms |
-|                             | RSS                |   47,920 KiB |   52,192 KiB |    +4,272 KiB (+8.9%) |
-|                             | Physical footprint | 21,661,440 B | 21,694,208 B |     +32,768 B (+0.2%) |
+| Variant                      | Metric             |   Bun 1.3.14 |    Bun 1.4.0 |                 Delta |
+| ---------------------------- | ------------------ | -----------: | -----------: | --------------------: |
+| Minimal Bun probe            | Readiness          |        51 ms |        51 ms |                     0 |
+|                              | RSS                |   23,760 KiB |    9,328 KiB |  −14,432 KiB (−60.7%) |
+|                              | Physical footprint |  7,423,872 B |  5,785,024 B | −1,638,848 B (−22.1%) |
+| Minimal Bun.serve probe      | Readiness          |        69 ms |        53 ms |       −16 ms (−23.2%) |
+|                              | RSS                |   27,616 KiB |   14,128 KiB |  −13,488 KiB (−48.8%) |
+|                              | Physical footprint | 10,028,800 B |  6,440,384 B | −3,588,416 B (−35.8%) |
+| iglo.monitor source backend  | Readiness          |       116 ms |       105 ms |        −11 ms (−9.5%) |
+|                              | RSS                |   70,288 KiB |   58,368 KiB |  −11,920 KiB (−17.0%) |
+|                              | Physical footprint | 30,116,480 B | 27,560,000 B |  −2,556,480 B (−8.5%) |
+| iglo.monitor compiled binary | Readiness          |       106 ms |       107 ms |                 +1 ms |
+|                              | RSS                |   47,920 KiB |   52,192 KiB |    +4,272 KiB (+8.9%) |
+|                              | Physical footprint | 21,661,440 B | 21,694,208 B |     +32,768 B (+0.2%) |
 
 The source-backend row is the application memory result that matters for `bun src/server/server.ts`: about 17% less RSS and 8.5% less physical footprint, with a small readiness improvement. The compiled-binary startup medians are not improved; the 1.3.14 compiled first trial was a 2,108 ms cold-start outlier, and 1.4.0 compiled RSS after the 1,000 ms warmup was slightly higher.
 

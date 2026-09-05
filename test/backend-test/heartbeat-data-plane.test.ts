@@ -15,7 +15,7 @@ import "@/server/model-registry";
 import { BunSQLiteRedbean } from "@/server/sqlite-core";
 import Monitor from "@/server/model/monitor";
 import { Notification } from "@/server/notification";
-import { UptimeMakuServer } from "@/server/uptime-maku-server";
+import { IgloMonitorServer } from "@/server/iglo-monitor-server";
 import { Settings } from "@/server/settings";
 import { Prometheus } from "@/server/prometheus";
 import { handleApiRequest } from "@/server/routers/api-router";
@@ -40,7 +40,7 @@ function deferred() {
 }
 
 async function createRuntime(name, now = dayjs.utc("2026-08-07T12:00:00Z")) {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), `uptime-maku-${name}-`));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), `iglo-monitor-${name}-`));
     const store = new BunSQLiteRedbean();
     await store.connect({
         sqlitePath: path.join(directory, "kuma.db"),
@@ -54,7 +54,7 @@ async function createRuntime(name, now = dayjs.utc("2026-08-07T12:00:00Z")) {
     );
     const data = new HeartbeatDataPlane(store, { now: () => now });
     const settings = new Settings(store);
-    const server = new UptimeMakuServer(store, settings);
+    const server = new IgloMonitorServer(store, settings);
     const responseCache = createResponseCache();
     resources.push({ directory, settings, store });
     return { data, responseCache, server, settings, store };

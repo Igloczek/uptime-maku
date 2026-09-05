@@ -80,7 +80,7 @@ function readMarker(filePath) {
 }
 
 function useTemporaryDatabase() {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-lifecycle-"));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-lifecycle-"));
     temporaryDirectories.push(directory);
     Database.sqlitePath = path.join(directory, "kuma.db");
     Database.dataDir = directory;

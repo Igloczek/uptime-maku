@@ -117,7 +117,7 @@ export default {
         slackTemplatedTextareaPlaceholder() {
             return this.$t("Example:", [
                 `
-Uptime Maku Alert{% if monitorJSON %} - {{ monitorJSON['name'] }}{% endif %}
+iglo.monitor Alert{% if monitorJSON %} - {{ monitorJSON['name'] }}{% endif %}
 {% if monitorJSON and monitorJSON.path and monitorJSON.path.length > 1 %}_{{ monitorJSON.path.slice(0, -1).join(' / ') }}_\n{% endif %}
 {{ msg }}
                 `,

@@ -7,7 +7,7 @@ import path from "node:path";
 import { Database } from "bun:sqlite";
 
 const projectRoot = path.join(import.meta.dirname, "../..");
-const binaryPath = process.env.UPTIME_MAKU_BINARY ? path.resolve(projectRoot, process.env.UPTIME_MAKU_BINARY) : null;
+const binaryPath = process.env.IGLO_MONITOR_BINARY ? path.resolve(projectRoot, process.env.IGLO_MONITOR_BINARY) : null;
 
 let appProcess;
 let dataDir;
@@ -48,7 +48,7 @@ function startSMTPServer() {
         socket: {
             open(socket) {
                 state.set(socket, { buffer: "", receivingData: false });
-                socket.write("220 uptime-maku-test ESMTP\r\n");
+                socket.write("220 iglo-monitor-test ESMTP\r\n");
             },
             data(socket, chunk) {
                 const connection = state.get(socket);
@@ -70,7 +70,7 @@ function startSMTPServer() {
                     connection.buffer = connection.buffer.slice(lineEnd + 2);
 
                     if (/^EHLO\b/i.test(command)) {
-                        socket.write("250-uptime-maku-test\r\n250 PIPELINING\r\n");
+                        socket.write("250-iglo-monitor-test\r\n250 PIPELINING\r\n");
                     } else if (/^DATA$/i.test(command)) {
                         connection.receivingData = true;
                         socket.write("354 End data with <CR><LF>.<CR><LF>\r\n");
@@ -98,7 +98,7 @@ async function waitForApp(url) {
         if (appProcess.exitCode !== null) {
             const stderr = appProcess.stderr ? await new Response(appProcess.stderr).text() : "";
             throw new Error(
-                `Uptime Maku exited before becoming ready (exit ${appProcess.exitCode})${stderr ? `: ${stderr.trim()}` : ""}`
+                `iglo.monitor exited before becoming ready (exit ${appProcess.exitCode})${stderr ? `: ${stderr.trim()}` : ""}`
             );
         }
         try {
@@ -109,7 +109,7 @@ async function waitForApp(url) {
         } catch {}
         await Bun.sleep(100);
     }
-    throw new Error("Uptime Maku did not become ready within 30 seconds");
+    throw new Error("iglo.monitor did not become ready within 30 seconds");
 }
 
 async function startApp({ executable = binaryPath, cwd = projectRoot } = {}) {
@@ -120,7 +120,7 @@ async function startApp({ executable = binaryPath, cwd = projectRoot } = {}) {
             env: {
                 ...process.env,
                 NODE_ENV: "production",
-                UPTIME_MAKU_WS_ORIGIN_CHECK: "bypass",
+                IGLO_MONITOR_WS_ORIGIN_CHECK: "bypass",
             },
             stdout: "ignore",
             stderr: "pipe",
@@ -192,7 +192,7 @@ async function stopApp() {
     }
     appProcess.kill("SIGTERM");
     try {
-        await withTimeout(appProcess.exited, 5_000, "Uptime Maku did not stop after SIGTERM");
+        await withTimeout(appProcess.exited, 5_000, "iglo.monitor did not stop after SIGTERM");
     } catch {
         appProcess.kill("SIGKILL");
         await appProcess.exited;
@@ -229,10 +229,10 @@ afterEach(async () => {
 
 describe("compiled runtime loading", () => {
     test("compiled executable runs SMTP provider and monitor factories through production flows", async () => {
-        expect(binaryPath, "UPTIME_MAKU_BINARY must point to a compiled Uptime Maku executable").toBeTruthy();
+        expect(binaryPath, "IGLO_MONITOR_BINARY must point to a compiled iglo.monitor executable").toBeTruthy();
         expect(fs.existsSync(binaryPath)).toBe(true);
 
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-compiled-smtp-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-compiled-smtp-"));
         const smtp = startSMTPServer();
         smtpServer = smtp.server;
 
@@ -303,9 +303,9 @@ describe("compiled runtime loading", () => {
     }, 60_000);
 
     test("standalone executable serves embedded assets and records a ping heartbeat", async () => {
-        expect(binaryPath, "UPTIME_MAKU_BINARY must point to a compiled Uptime Maku executable").toBeTruthy();
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-compiled-ping-"));
-        standaloneDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-compiled-standalone-"));
+        expect(binaryPath, "IGLO_MONITOR_BINARY must point to a compiled iglo.monitor executable").toBeTruthy();
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-compiled-ping-"));
+        standaloneDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-compiled-standalone-"));
         const standaloneBinary = path.join(standaloneDir, path.basename(binaryPath));
         fs.copyFileSync(binaryPath, standaloneBinary);
         if (process.platform !== "win32") {

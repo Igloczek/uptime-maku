@@ -27,14 +27,14 @@ class HomeAssistant extends NotificationProvider {
             await httpClient.post(
                 `${notification.homeAssistantUrl.trim().replace(/\/*$/, "")}/api/services/notify/${notificationService}`,
                 {
-                    title: "Uptime Maku",
+                    title: "iglo.monitor",
                     message: msg,
                     ...(notificationService !== "persistent_notification" && {
                         data: {
                             name: monitorJSON?.name,
                             status: heartbeatJSON?.status,
-                            channel: "Uptime Maku",
-                            icon_url: "https://raw.githubusercontent.com/Igloczek/uptime-maku/master/public/icon.png",
+                            channel: "iglo.monitor",
+                            icon_url: "https://raw.githubusercontent.com/iglo-tech/iglo.monitor/master/public/icon.png",
                         },
                     }),
                 },

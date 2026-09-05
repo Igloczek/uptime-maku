@@ -99,7 +99,7 @@ if (process.platform === "win32") {
  * @returns {Promise<boolean>} The executable is allowed?
  */
 async function isAllowedChromeExecutable(executablePath) {
-    if (config.args["allow-all-chrome-exec"] || process.env.UPTIME_MAKU_ALLOW_ALL_CHROME_EXEC === "1") {
+    if (config.args["allow-all-chrome-exec"] || process.env.IGLO_MONITOR_ALLOW_ALL_CHROME_EXEC === "1") {
         return true;
     }
 
@@ -196,7 +196,7 @@ function startSpawnCapture() {
             stdio[5] = "pipe";
             args = [
                 "/bin/sh",
-                ["-c", BROWSER_GROUP_SUPERVISOR, "uptime-maku-browser-supervisor", args[0], ...processArgs],
+                ["-c", BROWSER_GROUP_SUPERVISOR, "iglo-monitor-browser-supervisor", args[0], ...processArgs],
                 { ...options, stdio },
             ];
         }
@@ -501,7 +501,7 @@ async function prepareChromeExecutable(executablePath, deadline = Date.now() + B
         // Set to undefined = use playwright_chromium
         executablePath = undefined;
     } else if (!executablePath) {
-        if (process.env.UPTIME_MAKU_IS_CONTAINER) {
+        if (process.env.IGLO_MONITOR_IS_CONTAINER) {
             executablePath = "/usr/bin/chromium";
             await installChromiumViaApt(executablePath, deadline);
         } else {
@@ -512,7 +512,7 @@ async function prepareChromeExecutable(executablePath, deadline = Date.now() + B
         // Check if the executablePath is in the list of allowed
         if (!(await isAllowedChromeExecutable(executablePath))) {
             throw new Error(
-                "This Chromium executable path is not allowed by default. If you are sure this is safe, please add an environment variable UPTIME_MAKU_ALLOW_ALL_CHROME_EXEC=1 to allow it."
+                "This Chromium executable path is not allowed by default. If you are sure this is safe, please add an environment variable IGLO_MONITOR_ALLOW_ALL_CHROME_EXEC=1 to allow it."
             );
         }
     }

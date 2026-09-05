@@ -52,7 +52,7 @@ describe("Upstream Kuma upgrade", () => {
     let store;
 
     beforeEach(async () => {
-        dir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-upgrade-"));
+        dir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-upgrade-"));
         const dbPath = path.join(dir, "kuma.db");
         const sql = fs.readFileSync(baselineFixturePath, "utf8");
         loadSqlFixture(dbPath, sql);
@@ -73,9 +73,7 @@ describe("Upstream Kuma upgrade", () => {
     test("001-upstream-baseline migrates upstream Kuma data and sets schema version", async () => {
         expect(await getSchemaVersion(store)).toBe(1);
 
-        const schemaVersion = await store.getCell('SELECT value FROM setting WHERE "key" = ?', [
-            SCHEMA_VERSION_KEY,
-        ]);
+        const schemaVersion = await store.getCell('SELECT value FROM setting WHERE "key" = ?', [SCHEMA_VERSION_KEY]);
         expect(schemaVersion).toBe("1");
 
         const gamedigGame = await store.getCell("SELECT game FROM monitor WHERE name = ?", ["GameDig TF2"]);
@@ -136,7 +134,7 @@ describe("Upstream Kuma Knex end-state", () => {
     let store;
 
     beforeEach(async () => {
-        dir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-knex-endstate-"));
+        dir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-knex-endstate-"));
         const dbPath = path.join(dir, "kuma.db");
         const sql = fs.readFileSync(knexEndstateFixturePath, "utf8");
         loadSqlFixture(dbPath, sql);
@@ -178,12 +176,12 @@ describe("Upstream Kuma Knex end-state", () => {
     });
 });
 
-describe("Fresh Uptime Maku template", () => {
+describe("Fresh iglo.monitor template", () => {
     let dir;
     let store;
 
     beforeEach(() => {
-        dir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-fresh-"));
+        dir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-fresh-"));
     });
 
     afterEach(async () => {
@@ -217,7 +215,7 @@ describe("Fresh Uptime Maku template", () => {
 
 describe("Upgrade transaction recovery", () => {
     test("rolls back when the first data-phase statement fails and remains usable", async () => {
-        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-upgrade-first-error-"));
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-upgrade-first-error-"));
         const dbPath = path.join(dir, "kuma.db");
         loadSqlFixture(dbPath, fs.readFileSync(baselineFixturePath, "utf8"));
         let insideTransaction = false;

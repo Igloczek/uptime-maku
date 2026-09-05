@@ -15,7 +15,7 @@ class Mattermost extends NotificationProvider {
 
         try {
             let config = this.getAxiosConfigWithProxy({});
-            const mattermostUserName = notification.mattermostusername || "Uptime Maku";
+            const mattermostUserName = notification.mattermostusername || "iglo.monitor";
             // If heartbeatJSON is null, assume non monitoring notification (Certificate warning) or testing.
             if (heartbeatJSON == null) {
                 let mattermostTestData = {

@@ -28,7 +28,7 @@ class MonitorType {
      * Failure cases: Throw an error with a descriptive message.
      * @param {Monitor} monitor Monitor to check
      * @param {Heartbeat} heartbeat Monitor heartbeat to update
-     * @param {UptimeMakuServer} server Uptime Maku server
+     * @param {IgloMonitorServer} server iglo.monitor server
      * @returns {Promise<void>}
      */
     async check(monitor, heartbeat, server) {

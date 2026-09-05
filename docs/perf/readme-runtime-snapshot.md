@@ -2,14 +2,14 @@
 
 Date: 2026-06-29
 
-This snapshot is historical reference evidence under `docs/perf/`. It is not an upstream Uptime Kuma benchmark; it records the current Uptime Maku default path on this machine.
+This snapshot is historical reference evidence under `docs/perf/`. It is not an upstream Uptime Kuma benchmark; it records the current iglo.monitor default path on this machine.
 
 ## Startup RSS
 
 Command shape:
 
 ```bash
-tmpdir=$(mktemp -d /tmp/uptime-maku-readme-memory.XXXXXX)
+tmpdir=$(mktemp -d /tmp/iglo-monitor-readme-memory.XXXXXX)
 bun src/server/server.ts --port=3037 --data-dir="$tmpdir/data" > "$tmpdir/server.log" 2>&1 &
 pid=$!
 curl -fsS http://127.0.0.1:3037/setup
@@ -39,7 +39,7 @@ Measurement conditions:
 Current image evidence is recorded in [bun-015-sqlite-only-docker-simplification.md](bun-015-sqlite-only-docker-simplification.md).
 
 ```text
-uptime-maku:local = 277529464 bytes / 264.7 MiB
+iglo-monitor:local = 277529464 bytes / 264.7 MiB
 previous Bun cleanup image = 438054063 bytes / 417.8 MiB
 delta = -160524599 bytes / -153.1 MiB / -36.6%
 ```

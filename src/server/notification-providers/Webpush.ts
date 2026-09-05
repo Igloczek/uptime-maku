@@ -16,10 +16,10 @@ class Webpush extends NotificationProvider {
             const publicVapidKey = await this.settings.get("webpushPublicVapidKey");
             const privateVapidKey = await this.settings.get("webpushPrivateVapidKey");
 
-            webpush.setVapidDetails("https://github.com/Igloczek/uptime-maku", publicVapidKey, privateVapidKey);
+            webpush.setVapidDetails("https://github.com/iglo-tech/iglo.monitor", publicVapidKey, privateVapidKey);
 
             const data = JSON.stringify({
-                title: "Uptime Maku",
+                title: "iglo.monitor",
                 body: msg,
             });
 

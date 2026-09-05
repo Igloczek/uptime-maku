@@ -2,11 +2,11 @@
     <div class="d-flex justify-content-center align-items-center">
         <div class="logo d-flex flex-column justify-content-center align-items-center">
             <object class="my-4" width="200" height="200" data="/icon.svg" />
-            <div class="fs-4 fw-bold">Uptime Maku</div>
+            <div class="fs-4 fw-bold">iglo.monitor</div>
             <div>{{ $t("versionIs", { version: appStore.info.version }) }}</div>
 
             <div class="my-3 update-link">
-                <a href="https://github.com/Igloczek/uptime-maku/releases" target="_blank" rel="noopener">
+                <a href="https://github.com/iglo-tech/iglo.monitor/releases" target="_blank" rel="noopener">
                     {{ $t("Check Update On GitHub") }}
                 </a>
             </div>

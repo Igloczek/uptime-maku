@@ -1,0 +1,4 @@
+interface:
+    display_name: "Release iglo.monitor"
+    short_description: "Prepare and publish verified iglo.monitor releases"
+    default_prompt: "Use $release-iglo-monitor to prepare, publish, and verify the next iglo.monitor release."

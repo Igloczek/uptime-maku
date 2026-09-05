@@ -63,7 +63,7 @@ maintenance scenarios.
 - `bun run build` and `bun run build:binary`: exit 0; compiled executable produced.
 - `bun run test:backend`: unit `248 pass / 6 skip / 0 fail / 2122 expect()`, auth integration
   `13 pass / 0 fail / 424 expect()`, maintenance integration `8 pass / 0 fail / 123 expect()`.
-- `UPTIME_MAKU_BINARY=./uptime-maku bun test ./test/integration-test/maintenance.test.ts`:
+- `IGLO_MONITOR_BINARY=./iglo.monitor bun test ./test/integration-test/maintenance.test.ts`:
   `8 pass / 0 fail / 123 expect()`.
 - Full E2E on the exact final runtime: `36/36` twice, each with a fresh setup database and natural exit 0.
 - Post-format hook: model/timer suite `9/9 / 100 expect()` and lint exit 0.
@@ -202,7 +202,7 @@ state after rollback.
 ## Residual limits
 
 - Malformed legacy weekday/day JSON is handled safely as an empty list, and an invalid legacy timezone uses the
-  server timezone, but Uptime Maku does not rewrite either corrupted value automatically.
+  server timezone, but iglo.monitor does not rewrite either corrupted value automatically.
 - Existing manually inserted duplicate relation rows are deduplicated on the next save; the legacy SQLite tables do
   not have a new uniqueness constraint.
 - Status pages are global in the current SQLite schema and therefore cannot be owner-filtered like monitors.

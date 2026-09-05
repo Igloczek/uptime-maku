@@ -93,7 +93,7 @@ The full suite discovers all `*.test.ts` files. Some failures are environmental,
 | Category       | Examples                                                                         | Cause                             |
 | -------------- | -------------------------------------------------------------------------------- | --------------------------------- |
 | Testcontainers | `monitors/{mqtt,mssql,mysql,oracledb,postgres,rabbitmq}.test.ts`, `snmp.test.ts` | Requires Docker and live services |
-| Public network | `domain.test.ts`, opt-in TCP via `UPTIME_MAKU_PUBLIC_NETWORK_TESTS=1`             | Needs live RDAP/DNS/TLS           |
+| Public network | `domain.test.ts`, opt-in TCP via `IGLO_MONITOR_PUBLIC_NETWORK_TESTS=1`           | Needs live RDAP/DNS/TLS           |
 | Host/process   | `ping.test.ts`, `monitors/kafka-producer.test.ts`                                | Needs host tools or a local mock  |
 
 The Testcontainers suites require a working local Docker daemon. The multi-case MySQL, Microsoft SQL Server, Oracle,
@@ -107,16 +107,16 @@ integration suites. Use `test:backend:unit` for a focused offline iteration.
 The production WebSocket lifecycle tests can also target a compiled executable without changing their assertions:
 
 ```bash
-UPTIME_MAKU_BINARY=./uptime-maku bun test ./test/backend-test/monitor-lifecycle.test.ts
+IGLO_MONITOR_BINARY=./iglo.monitor bun test ./test/backend-test/monitor-lifecycle.test.ts
 ```
 
 An opt-in case exercises a real local Chrome/Chromium process, screenshot serving, settings-triggered owner
 replacement, pause during an active navigation, relaunch, and process cleanup on shutdown. Without
-`UPTIME_MAKU_BINARY` it runs against source; with the variable it runs against the compiled executable:
+`IGLO_MONITOR_BINARY` it runs against source; with the variable it runs against the compiled executable:
 
 ```bash
-UPTIME_MAKU_BINARY=./uptime-maku \
-UPTIME_MAKU_REAL_BROWSER_CHROME=/usr/bin/chromium \
+IGLO_MONITOR_BINARY=./iglo.monitor \
+IGLO_MONITOR_REAL_BROWSER_CHROME=/usr/bin/chromium \
 bun test ./test/backend-test/monitor-lifecycle.test.ts --test-name-pattern "real-browser monitor completes"
 ```
 
@@ -125,9 +125,9 @@ directory with no package manifest or `node_modules`, starts it from that direct
 runs the same real Chromium, screenshot, pause, delete, and shutdown checks:
 
 ```bash
-UPTIME_MAKU_BINARY=./uptime-maku \
-UPTIME_MAKU_STANDALONE_BINARY=1 \
-UPTIME_MAKU_REAL_BROWSER_CHROME=/usr/bin/chromium \
+IGLO_MONITOR_BINARY=./iglo.monitor \
+IGLO_MONITOR_STANDALONE_BINARY=1 \
+IGLO_MONITOR_REAL_BROWSER_CHROME=/usr/bin/chromium \
 bun test ./test/backend-test/monitor-lifecycle.test.ts --test-name-pattern "copied standalone binary"
 ```
 
@@ -135,7 +135,7 @@ Source runs also include a development-only SQLite snapshot scenario. It verifie
 completion, post-swap database recovery, restored settings, and a fresh owner after rehydration:
 
 ```bash
-UPTIME_MAKU_REAL_BROWSER_CHROME=/usr/bin/chromium \
+IGLO_MONITOR_REAL_BROWSER_CHROME=/usr/bin/chromium \
 bun test ./test/backend-test/monitor-lifecycle.test.ts --test-name-pattern "SQLite restore retires"
 ```
 
@@ -145,12 +145,12 @@ and `SIGTERM` cannot return while the matching process tree or socket is still l
 against source; the other cases exercise source or the compiled executable:
 
 ```bash
-UPTIME_MAKU_PENDING_BROWSER_ACQUISITION=1 \
+IGLO_MONITOR_PENDING_BROWSER_ACQUISITION=1 \
 bun test ./test/backend-test/monitor-lifecycle.test.ts \
   --test-name-pattern "pre-handshake|remote-browser (test|edit)|SIGTERM"
 
-UPTIME_MAKU_PENDING_BROWSER_ACQUISITION=1 \
-UPTIME_MAKU_BINARY=./uptime-maku \
+IGLO_MONITOR_PENDING_BROWSER_ACQUISITION=1 \
+IGLO_MONITOR_BINARY=./iglo.monitor \
 bun test ./test/backend-test/monitor-lifecycle.test.ts \
   --test-name-pattern "pre-handshake|remote-browser (test|edit)|SIGTERM"
 ```

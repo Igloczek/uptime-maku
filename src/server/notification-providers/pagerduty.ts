@@ -16,21 +16,21 @@ class PagerDuty extends NotificationProvider {
     async send(notification, msg, monitorJSON = null, heartbeatJSON = null) {
         try {
             if (heartbeatJSON == null) {
-                const title = "Uptime Maku Alert";
+                const title = "iglo.monitor Alert";
                 const monitor = {
                     type: "ping",
-                    url: "Uptime Maku Test Button",
+                    url: "iglo.monitor Test Button",
                 };
                 return this.postNotification(notification, title, msg, monitor);
             }
 
             if (heartbeatJSON.status === UP) {
-                const title = "Uptime Maku Monitor ✅ Up";
+                const title = "iglo.monitor Monitor ✅ Up";
                 return this.postNotification(notification, title, heartbeatJSON.msg, monitorJSON, "resolve");
             }
 
             if (heartbeatJSON.status === DOWN) {
-                const title = "Uptime Maku Monitor 🔴 Down";
+                const title = "iglo.monitor Monitor 🔴 Down";
                 return this.postNotification(notification, title, heartbeatJSON.msg, monitorJSON, "trigger");
             }
         } catch (error) {
@@ -94,13 +94,13 @@ class PagerDuty extends NotificationProvider {
                 },
                 routing_key: notification.pagerdutyIntegrationKey,
                 event_action: eventAction,
-                dedup_key: monitorInfo.id ? "Uptime Maku/" + monitorInfo.id : "Uptime Maku/test",
+                dedup_key: monitorInfo.id ? "iglo.monitor/" + monitorInfo.id : "iglo.monitor/test",
             },
         };
 
         const baseURL = await this.settings.get("primaryBaseURL");
         if (baseURL && monitorInfo) {
-            options.client = "Uptime Maku";
+            options.client = "iglo.monitor";
             options.client_url = baseURL + getMonitorRelativeURL(monitorInfo.id);
         }
 

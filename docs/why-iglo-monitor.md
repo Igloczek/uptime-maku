@@ -1,8 +1,8 @@
-# Why Uptime Maku exists
+# Why iglo.monitor exists
 
 Uptime monitoring is conceptually simple: run checks on a schedule, record the results, alert when something changes, and present the data clearly. The application implementing that idea should be understandable and dependable too.
 
-Uptime Kuma delivers a capable monitoring product with an approachable interface and a large integration ecosystem. Uptime Maku exists because the architecture underneath that product has become much more complicated than the problem requires.
+Uptime Kuma delivers a capable monitoring product with an approachable interface and a large integration ecosystem. iglo.monitor exists because the architecture underneath that product has become much more complicated than the problem requires.
 
 This is not about changing JavaScript runtimes for its own sake. It is about building the product on foundations that are easier to reason about, test, operate, and evolve.
 
@@ -24,25 +24,25 @@ Hidden state makes startup order matter, encourages circular dependencies, compl
 
 Supporting several runtimes, module systems, transports, database engines, deployment styles, and generations of internal APIs left layers of adapters and fallback paths throughout the codebase.
 
-Compatibility has a real cost. Every supported path expands the number of states that must be understood and tested. Uptime Maku deliberately supports a narrower platform so obsolete branches can be removed instead of carried forever.
+Compatibility has a real cost. Every supported path expands the number of states that must be understood and tested. iglo.monitor deliberately supports a narrower platform so obsolete branches can be removed instead of carried forever.
 
 ### The dependency graph is much larger than the product needs
 
 Some dependencies provide only a tiny piece of behavior. Others remain because a barrel import or compatibility path loads them indirectly. Optional integrations can become part of startup even when they are never configured.
 
-Each dependency adds code, transitive packages, security surface, memory pressure, and maintenance work. Uptime Maku uses built-in platform APIs or small focused implementations when they are genuinely simpler, and loads optional features only when needed.
+Each dependency adds code, transitive packages, security surface, memory pressure, and maintenance work. iglo.monitor uses built-in platform APIs or small focused implementations when they are genuinely simpler, and loads optional features only when needed.
 
 ### Barrel files hide coupling
 
 Broad utility entrypoints make imports look convenient while obscuring where symbols come from and what evaluating an import will load. They encourage unrelated code to grow behind one generic name and make dependency cycles harder to see.
 
-Uptime Maku imports from the module that owns a symbol. Shared code is kept focused instead of being collected into another catch-all utility layer.
+iglo.monitor imports from the module that owns a symbol. Shared code is kept focused instead of being collected into another catch-all utility layer.
 
 ### Persistence relies on too much magic
 
-The inherited data layer mixes active-record-style models, global registration, implicit field conversion, legacy schema patches, migration systems, and branches for database engines that Uptime Maku does not support.
+The inherited data layer mixes active-record-style models, global registration, implicit field conversion, legacy schema patches, migration systems, and branches for database engines that iglo.monitor does not support.
 
-That makes ordinary data changes difficult to trace and transaction ownership easy to get wrong. Uptime Maku keeps SQLite, makes store ownership explicit, and moves persistence behavior into visible mappings and transaction boundaries.
+That makes ordinary data changes difficult to trace and transaction ownership easy to get wrong. iglo.monitor keeps SQLite, makes store ownership explicit, and moves persistence behavior into visible mappings and transaction boundaries.
 
 ### Internal contracts are weak
 
@@ -54,7 +54,7 @@ The rewrite defines contracts at real boundaries and removes type-checking excep
 
 Global mixins, root-instance state, and oversized screens make data ownership unclear and turn routine UI changes into cross-application work. Monitor configuration is especially difficult because every monitor type and advanced option competes inside one large editor.
 
-Uptime Maku moves state into explicit stores and composables, and splits screens by behavior rather than by arbitrary file size.
+iglo.monitor moves state into explicit stores and composables, and splits screens by behavior rather than by arbitrary file size.
 
 ### Architectural ambiguity causes correctness bugs
 
@@ -64,12 +64,12 @@ Tests can characterize those behaviors, but tests alone cannot make tangled owne
 
 ## The approach
 
-Uptime Maku follows a few strict rules:
+iglo.monitor follows a few strict rules:
 
 - one runtime, one package manager, one application database, and one release artifact;
 - explicit dependencies and locally owned state instead of service locators and globals;
 - focused modules and direct imports instead of god modules and barrels;
-- compatibility at persisted-data and public-protocol boundaries, not throughout the internals;
+- automatic import at the SQLite database boundary, not compatibility aliases throughout the runtime;
 - optional integrations loaded only when used;
 - typed contracts introduced alongside the boundaries they describe;
 - measured changes for performance-sensitive work;
@@ -79,14 +79,14 @@ Bun is useful where its built-in server, WebSocket, SQLite, process, and build A
 
 ## Scope
 
-Uptime Maku does not aim to mirror every Uptime Kuma feature, database, deployment method, or internal design choice. Features are kept when they are valuable and can be supported well. Compatibility is intentionally limited when preserving it would also preserve the architecture being replaced.
+iglo.monitor does not aim to mirror every Uptime Kuma feature, database, deployment method, or internal design choice. Features are kept when they are valuable and can be supported well. The only compatibility path is the automatic importer for supported Uptime Kuma SQLite databases; configuration, payload, and protocol names follow iglo.monitor directly.
 
 The result should remain recognizable as a self-hosted uptime monitor while becoming substantially smaller, clearer, and easier to maintain.
 
 ## Credit and independence
 
-Uptime Maku would not exist without Uptime Kuma. Louis Lam and the Uptime Kuma contributors created the product model, dashboard, monitor types, notification providers, status pages, translations, and years of practical behavior that form the starting point for this work.
+iglo.monitor would not exist without Uptime Kuma. Louis Lam and the Uptime Kuma contributors created the product model, dashboard, monitor types, notification providers, status pages, translations, and years of practical behavior that form the starting point for this work.
 
-That contribution deserves clear credit. The architectural criticism in this document explains why Uptime Maku takes a different direction; it does not erase the value of the product or the work behind it.
+That contribution deserves clear credit. The architectural criticism in this document explains why iglo.monitor takes a different direction; it does not erase the value of the product or the work behind it.
 
-Uptime Maku is independently maintained, is not an official Uptime Kuma edition, and does not ask Uptime Kuma maintainers to support its design or migration decisions.
+iglo.monitor is independently maintained, is not an official Uptime Kuma edition, and does not ask Uptime Kuma maintainers to support its design or migration decisions.

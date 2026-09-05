@@ -15,7 +15,7 @@ import { Settings } from "@/server/settings";
 const directories = [];
 
 async function createStore() {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-auth-settings-"));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-auth-settings-"));
     directories.push(directory);
     const store = new BunSQLiteRedbean();
     await store.connect({

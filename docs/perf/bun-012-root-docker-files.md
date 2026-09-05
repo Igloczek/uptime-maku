@@ -10,7 +10,7 @@ Date: 2026-06-29
 
 ## Runtime Defaults
 
-- Root `compose.yaml` builds local image `uptime-maku:local`.
+- Root `compose.yaml` builds local image `iglo-monitor:local`.
 - Root `compose.yaml` uses root `Dockerfile`.
 - Package Docker scripts now expose one local image build script: `bun run build-docker`.
 - Release helper default Dockerfile path is `Dockerfile`.
@@ -21,7 +21,7 @@ Date: 2026-06-29
 bun run build
 docker compose config
 docker compose build --progress=plain
-docker image inspect uptime-maku:bun-final --format '{{.Size}}'
+docker image inspect iglo-monitor:bun-final --format '{{.Size}}'
 ```
 
 Results:
@@ -36,18 +36,18 @@ Results:
 Command:
 
 ```bash
-UPTIME_MAKU_PORT=3012 UPTIME_MAKU_DATA_DIR=/tmp/uptime-maku-root-docker-smoke docker compose -p uptime-maku-root-smoke up -d --force-recreate
+IGLO_MONITOR_PORT=3012 IGLO_MONITOR_DATA_DIR=/tmp/iglo-monitor-root-docker-smoke docker compose -p iglo-monitor-root-smoke up -d --force-recreate
 ```
 
 Results:
 
-- Container started from `uptime-maku:bun-final`.
+- Container started from `iglo-monitor:bun-final`.
 - Container status: `Up ... (healthy)`.
 - Logs showed `Server Type: Bun.serve HTTP`.
 - HTTP check passed: `http://127.0.0.1:3012/setup` returned `200`.
 - Browser smoke passed: setup page rendered, admin user was created, and dashboard loaded.
-- Smoke project was stopped with `docker compose -p uptime-maku-root-smoke down --volumes --remove-orphans`.
-- Temporary data directory `/tmp/uptime-maku-root-docker-smoke` was removed.
+- Smoke project was stopped with `docker compose -p iglo-monitor-root-smoke down --volumes --remove-orphans`.
+- Temporary data directory `/tmp/iglo-monitor-root-docker-smoke` was removed.
 
 ## Remaining Docker Exceptions
 

@@ -1,6 +1,6 @@
 {
-    "name": "Uptime Maku",
-    "short_name": "Uptime Maku",
+    "name": "iglo.monitor",
+    "short_name": "iglo.monitor",
     "description": "An easy-to-use self-hosted monitoring tool.",
     "theme_color": "#5cdd8b",
     "start_url": "/",

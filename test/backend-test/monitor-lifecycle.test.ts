@@ -11,10 +11,10 @@ import path from "node:path";
 import { MAX_INTERVAL_SECOND } from "@/constants";
 
 const projectRoot = path.join(import.meta.dirname, "../..");
-const binaryPath = process.env.UPTIME_MAKU_BINARY ? path.resolve(projectRoot, process.env.UPTIME_MAKU_BINARY) : null;
-const standaloneBinary = process.env.UPTIME_MAKU_STANDALONE_BINARY === "1";
-const realBrowserExecutable = process.env.UPTIME_MAKU_REAL_BROWSER_CHROME || null;
-const pendingBrowserAcquisition = process.env.UPTIME_MAKU_PENDING_BROWSER_ACQUISITION === "1";
+const binaryPath = process.env.IGLO_MONITOR_BINARY ? path.resolve(projectRoot, process.env.IGLO_MONITOR_BINARY) : null;
+const standaloneBinary = process.env.IGLO_MONITOR_STANDALONE_BINARY === "1";
+const realBrowserExecutable = process.env.IGLO_MONITOR_REAL_BROWSER_CHROME || null;
+const pendingBrowserAcquisition = process.env.IGLO_MONITOR_PENDING_BROWSER_ACQUISITION === "1";
 const credentials = { username: "monitor-test", password: "monitor-test-password" };
 
 let appProcess;
@@ -175,7 +175,7 @@ function preparePendingBrowserWrapper() {
     fs.rmSync(pidFile, { force: true });
     fs.writeFileSync(
         executable,
-        '#!/bin/sh\ntrap \'\' TERM\nprintf \'%s\\n\' "$$" > "$UPTIME_MAKU_PENDING_BROWSER_PID_FILE"\nsh -c \'sleep 300 & printf "%s\\n" "$!" >> "$UPTIME_MAKU_PENDING_BROWSER_PID_FILE"; wait\' &\nprintf \'%s\\n\' "$!" >> "$UPTIME_MAKU_PENDING_BROWSER_PID_FILE"\nwait\n'
+        '#!/bin/sh\ntrap \'\' TERM\nprintf \'%s\\n\' "$$" > "$IGLO_MONITOR_PENDING_BROWSER_PID_FILE"\nsh -c \'sleep 300 & printf "%s\\n" "$!" >> "$IGLO_MONITOR_PENDING_BROWSER_PID_FILE"; wait\' &\nprintf \'%s\\n\' "$!" >> "$IGLO_MONITOR_PENDING_BROWSER_PID_FILE"\nwait\n'
     );
     fs.chmodSync(executable, 0o755);
     return { executable, pidFile };
@@ -330,7 +330,7 @@ async function waitForApp() {
     const deadline = Date.now() + 30_000;
     while (Date.now() < deadline) {
         if (appProcess.exitCode !== null) {
-            throw new Error(`Uptime Maku exited before readiness with code ${appProcess.exitCode}`);
+            throw new Error(`iglo.monitor exited before readiness with code ${appProcess.exitCode}`);
         }
         try {
             if ((await fetch(`http://127.0.0.1:${appPort}/api/entry-page`)).ok) {
@@ -339,7 +339,7 @@ async function waitForApp() {
         } catch {}
         await Bun.sleep(50);
     }
-    throw new Error("Uptime Maku did not become ready within 30 seconds");
+    throw new Error("iglo.monitor did not become ready within 30 seconds");
 }
 
 async function startApp() {
@@ -357,12 +357,12 @@ async function startApp() {
             HTTP_PROXY: envProxyUrl,
             HTTPS_PROXY: envProxyUrl,
             NO_PROXY: appNoProxy,
-            UPTIME_MAKU_WS_ORIGIN_CHECK: "bypass",
-            UPTIME_MAKU_LOG_FORMAT: "json",
-            UPTIME_MAKU_ALLOW_ALL_CHROME_EXEC: pendingBrowserAcquisition
+            IGLO_MONITOR_WS_ORIGIN_CHECK: "bypass",
+            IGLO_MONITOR_LOG_FORMAT: "json",
+            IGLO_MONITOR_ALLOW_ALL_CHROME_EXEC: pendingBrowserAcquisition
                 ? "1"
-                : process.env.UPTIME_MAKU_ALLOW_ALL_CHROME_EXEC,
-            UPTIME_MAKU_PENDING_BROWSER_PID_FILE: pendingBrowserAcquisition
+                : process.env.IGLO_MONITOR_ALLOW_ALL_CHROME_EXEC,
+            IGLO_MONITOR_PENDING_BROWSER_PID_FILE: pendingBrowserAcquisition
                 ? path.join(dataDir, "pending-browser-pids")
                 : undefined,
         },
@@ -381,7 +381,7 @@ async function stopApp() {
     }
     appProcess.kill("SIGTERM");
     try {
-        await withTimeout(appProcess.exited, 6_000, "Uptime Maku did not stop after SIGTERM");
+        await withTimeout(appProcess.exited, 6_000, "iglo.monitor did not stop after SIGTERM");
     } catch {
         appProcess.kill("SIGKILL");
         await appProcess.exited;
@@ -590,15 +590,15 @@ function heartbeatFor(monitorID, status) {
 beforeAll(async () => {
     if (standaloneBinary) {
         if (!binaryPath) {
-            throw new Error("UPTIME_MAKU_STANDALONE_BINARY requires UPTIME_MAKU_BINARY");
+            throw new Error("IGLO_MONITOR_STANDALONE_BINARY requires IGLO_MONITOR_BINARY");
         }
-        standaloneDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-standalone-"));
-        standaloneBinaryPath = path.join(standaloneDir, "uptime-maku");
+        standaloneDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-standalone-"));
+        standaloneBinaryPath = path.join(standaloneDir, "iglo.monitor");
         fs.copyFileSync(binaryPath, standaloneBinaryPath);
         fs.chmodSync(standaloneBinaryPath, 0o755);
-        expect(fs.readdirSync(standaloneDir)).toEqual(["uptime-maku"]);
+        expect(fs.readdirSync(standaloneDir)).toEqual(["iglo.monitor"]);
     }
-    dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-monitor-lifecycle-"));
+    dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-monitor-lifecycle-"));
     targetServer = startTargetServer();
     await listen(targetServer);
     targetUrl = `http://127.0.0.1:${targetServer.address().port}`;
@@ -1586,7 +1586,7 @@ describe("monitor lifecycle over the production WebSocket transport", () => {
                         }
                     })(),
                     5_000,
-                    "Chromium processes survived Uptime Maku shutdown"
+                    "Chromium processes survived iglo.monitor shutdown"
                 );
             } finally {
                 barrier?.release();
@@ -2067,7 +2067,7 @@ describe("monitor lifecycle over the production WebSocket transport", () => {
     );
 
     test.skipIf(!pendingBrowserAcquisition || process.platform === "win32")(
-        "SIGTERM retires a pre-handshake browser process tree before Uptime Maku exits",
+        "SIGTERM retires a pre-handshake browser process tree before iglo.monitor exits",
         async () => {
             const baseline = await realtime.request("getSettings");
             expect(baseline.ok).toBe(true);

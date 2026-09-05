@@ -21,7 +21,7 @@ import { RemoteBrowser } from "@/server/remote-browser";
 const directories = [];
 
 async function createStore() {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-user-resources-"));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-user-resources-"));
     directories.push(directory);
     const store = new BunSQLiteRedbean();
     await store.connect({

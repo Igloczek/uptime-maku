@@ -29,13 +29,13 @@ class RocketChat extends NotificationProvider {
             }
 
             let data = {
-                text: "Uptime Maku Alert",
+                text: "iglo.monitor Alert",
                 channel: notification.rocketchannel,
                 username: notification.rocketusername,
                 icon_emoji: notification.rocketiconemo,
                 attachments: [
                     {
-                        title: `Uptime Maku Alert *Time (${heartbeatJSON["timezone"]})*\n${heartbeatJSON["localDateTime"]}`,
+                        title: `iglo.monitor Alert *Time (${heartbeatJSON["timezone"]})*\n${heartbeatJSON["localDateTime"]}`,
                         text: "*Message*\n" + msg,
                     },
                 ],

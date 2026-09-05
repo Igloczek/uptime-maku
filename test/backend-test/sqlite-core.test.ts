@@ -44,7 +44,7 @@ describe("Bun SQLite Redbean compatibility store", () => {
     let store;
 
     beforeEach(async () => {
-        dir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-store-"));
+        dir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-store-"));
         store = new BunSQLiteRedbean();
         await store.connect({
             sqlitePath: path.join(dir, "kuma.db"),

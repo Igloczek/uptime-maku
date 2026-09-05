@@ -1,9 +1,9 @@
 ---
-name: release-uptime-maku
-description: Prepare, publish, and verify Uptime Maku releases through the repository's Bun build and GitHub Actions workflow. Use when creating the next stable, beta, or release-candidate version; bumping the application version; pushing a version tag; or checking generated GitHub release notes, binaries, and checksums.
+name: release-iglo-monitor
+description: Prepare, publish, and verify iglo.monitor releases through the repository's Bun build and GitHub Actions workflow. Use when creating the next stable, beta, or release-candidate version; bumping the application version; pushing a version tag; or checking generated GitHub release notes, binaries, and checksums.
 ---
 
-# Release Uptime Maku
+# Release iglo.monitor
 
 Use `.github/workflows/release.yml` as the release implementation. Drive and verify that workflow; do not create a parallel publisher.
 
@@ -14,12 +14,12 @@ Use `.github/workflows/release.yml` as the release implementation. Drive and ver
 - Keep `package.json` version equal to the tag without the leading `v`.
 - Treat tags containing `-` as prereleases. The workflow must not mark them as latest.
 - Expect six binaries plus `checksums-sha256.txt`:
-    - `uptime-maku-linux-x64`
-    - `uptime-maku-linux-arm64`
-    - `uptime-maku-linux-x64-musl`
-    - `uptime-maku-darwin-x64`
-    - `uptime-maku-darwin-arm64`
-    - `uptime-maku-windows-x64.exe`
+    - `iglo.monitor-linux-x64`
+    - `iglo.monitor-linux-arm64`
+    - `iglo.monitor-linux-x64-musl`
+    - `iglo.monitor-darwin-x64`
+    - `iglo.monitor-darwin-arm64`
+    - `iglo.monitor-windows-x64.exe`
 - Let GitHub generate release notes through `generate_release_notes: true` and inspect the published result.
 - Keep Bun as the only release runtime and `bun.lock` as the lockfile. Do not add npm, Node, Docker, or another distribution path.
 
@@ -62,7 +62,7 @@ Also require `git diff --check`. Do not tag a failing revision; report the exact
 4. Create and push an annotated tag on that exact commit:
 
 ```bash
-git tag -a vVERSION COMMIT -m "Uptime Maku vVERSION"
+git tag -a vVERSION COMMIT -m "iglo.monitor vVERSION"
 git push origin vVERSION
 ```
 

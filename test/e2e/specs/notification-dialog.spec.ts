@@ -28,7 +28,7 @@ async function startSmtpSink() {
     const server = createServer((socket) => {
         sockets.add(socket);
         socket.setEncoding("utf8");
-        socket.write("220 uptime-maku-e2e ESMTP\r\n");
+        socket.write("220 iglo-monitor-e2e ESMTP\r\n");
 
         let buffer = "";
         let receivingData = false;
@@ -78,7 +78,7 @@ async function startSmtpSink() {
 
                 if (state === "ehlo" && /^EHLO\b/i.test(command)) {
                     state = "mail";
-                    socket.write("250 uptime-maku-e2e\r\n");
+                    socket.write("250 iglo-monitor-e2e\r\n");
                 } else if (state === "mail" && mail) {
                     mailFrom = mail[1];
                     state = "rcpt";

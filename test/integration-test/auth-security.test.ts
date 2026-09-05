@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 
 const projectRoot = path.join(import.meta.dirname, "../..");
-const binaryPath = process.env.UPTIME_MAKU_BINARY ? path.resolve(projectRoot, process.env.UPTIME_MAKU_BINARY) : null;
+const binaryPath = process.env.IGLO_MONITOR_BINARY ? path.resolve(projectRoot, process.env.IGLO_MONITOR_BINARY) : null;
 
 let appProcess;
 let dataDir;
@@ -39,7 +39,7 @@ async function waitForApp(url) {
     const deadline = Date.now() + 30_000;
     while (Date.now() < deadline) {
         if (appProcess.exitCode !== null) {
-            throw new Error(`Uptime Maku exited before becoming ready (exit ${appProcess.exitCode})`);
+            throw new Error(`iglo.monitor exited before becoming ready (exit ${appProcess.exitCode})`);
         }
         try {
             if ((await fetch(url)).ok) {
@@ -48,7 +48,7 @@ async function waitForApp(url) {
         } catch {}
         await Bun.sleep(100);
     }
-    throw new Error("Uptime Maku did not become ready within 30 seconds");
+    throw new Error("iglo.monitor did not become ready within 30 seconds");
 }
 
 async function startApp() {
@@ -61,7 +61,7 @@ async function startApp() {
         env: {
             ...process.env,
             NODE_ENV: "production",
-            UPTIME_MAKU_WS_ORIGIN_CHECK: "bypass",
+            IGLO_MONITOR_WS_ORIGIN_CHECK: "bypass",
         },
         stdout: "ignore",
         stderr: "ignore",
@@ -81,7 +81,7 @@ async function stopApp() {
     if (processToStop.exitCode === null) {
         processToStop.kill("SIGTERM");
         try {
-            await withTimeout(processToStop.exited, 5_000, "Uptime Maku did not stop after SIGTERM");
+            await withTimeout(processToStop.exited, 5_000, "iglo.monitor did not stop after SIGTERM");
         } catch {
             processToStop.kill("SIGKILL");
             await processToStop.exited;
@@ -183,7 +183,7 @@ afterEach(async () => {
 
 describe("production auth, API key, and metrics boundaries", () => {
     test("claims setup before hashing and releases the claim after concurrent setup attempts", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-setup-concurrency-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-setup-concurrency-"));
         const port = await startApp();
         const results = await Promise.all(
             Array.from({ length: 32 }, async (_, index) => {
@@ -199,7 +199,7 @@ describe("production auth, API key, and metrics boundaries", () => {
     }, 120_000);
 
     test("throttles HTTP Basic and API-key attempts before verification", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-http-auth-concurrency-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-http-auth-concurrency-"));
         const port = await startApp();
         const socket = await connectRealtime(port);
         expect((await socket.request("setup", "admin", "admin-password")).ok).toBe(true);
@@ -228,7 +228,7 @@ describe("production auth, API key, and metrics boundaries", () => {
     }, 120_000);
 
     test("setup, persistent sessions, ownership, and secret redaction", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-auth-security-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-auth-security-"));
         let port = await startApp();
         const first = await connectRealtime(port);
         const second = await connectRealtime(port);
@@ -406,7 +406,7 @@ describe("production auth, API key, and metrics boundaries", () => {
     }, 120_000);
 
     test("private events, password changes, and 2FA reject invalid and replayed credentials", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-password-2fa-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-password-2fa-"));
         const port = await startApp();
         const socket = await connectRealtime(port);
 
@@ -519,7 +519,7 @@ describe("production auth, API key, and metrics boundaries", () => {
     }, 120_000);
 
     test("consumes one concurrent TOTP login code before issuing a session", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-totp-concurrency-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-totp-concurrency-"));
         const port = await startApp();
         const setupSocket = await connectRealtime(port);
         expect((await setupSocket.request("setup", "admin", "admin-password")).ok).toBe(true);
@@ -565,7 +565,7 @@ describe("production auth, API key, and metrics boundaries", () => {
     }, 120_000);
 
     test("binds a pending 2FA secret to its socket and rejects replacement saves", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-2fa-socket-state-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-2fa-socket-state-"));
         const port = await startApp();
         const first = await connectRealtime(port);
         expect((await first.request("setup", "admin", "admin-password")).ok).toBe(true);
@@ -628,7 +628,7 @@ describe("production auth, API key, and metrics boundaries", () => {
     }, 120_000);
 
     test("reserves a password-login token before concurrent credential verification", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-login-concurrency-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-login-concurrency-"));
         const port = await startApp();
         const socket = await connectRealtime(port);
         expect((await socket.request("setup", "admin", "admin-password")).ok).toBe(true);
@@ -647,7 +647,7 @@ describe("production auth, API key, and metrics boundaries", () => {
     }, 120_000);
 
     test("login throttling does not let unrelated usernames exhaust the admin bucket", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-login-rate-limit-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-login-rate-limit-"));
         const port = await startApp();
         const socket = await connectRealtime(port);
         expect((await socket.request("setup", "admin", "admin-password")).ok).toBe(true);
@@ -672,7 +672,7 @@ describe("production auth, API key, and metrics boundaries", () => {
     }, 120_000);
 
     test("uses the real WebSocket peer for source fallback despite rotated forwarding headers", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-ws-peer-source-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-ws-peer-source-"));
         const port = await startApp();
         const setup = await connectRealtime(port);
         expect((await setup.request("setup", "admin", "admin-password")).ok).toBe(true);
@@ -717,7 +717,7 @@ describe("production auth, API key, and metrics boundaries", () => {
     }, 120_000);
 
     test("preserves WebSocket, HTTP Basic, and API-key partial penalties through adversarial churn", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-rate-limit-churn-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-rate-limit-churn-"));
         let port = await startApp();
         let socket = await connectRealtime(port);
         expect((await socket.request("setup", "admin", "admin-password")).ok).toBe(true);
@@ -791,7 +791,7 @@ describe("production auth, API key, and metrics boundaries", () => {
     }, 120_000);
 
     test("disabled authentication requires a password to enter and restores the boundary when re-enabled", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-disabled-auth-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-disabled-auth-"));
         const port = await startApp();
         const socket = await connectRealtime(port);
         expect((await socket.request("setup", "admin", "admin-password")).ok).toBe(true);
@@ -822,7 +822,7 @@ describe("production auth, API key, and metrics boundaries", () => {
     }, 120_000);
 
     test("a successful legacy SHA-1 login migrates the stored password to Argon2id", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-legacy-password-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-legacy-password-"));
         let port = await startApp();
         const setupSocket = await connectRealtime(port);
         expect((await setupSocket.request("setup", "admin", "initial-password")).ok).toBe(true);
@@ -859,7 +859,7 @@ describe("production auth, API key, and metrics boundaries", () => {
     }, 120_000);
 
     test("admin CLIs remove 2FA and reset the password in the production database", async () => {
-        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "uptime-maku-admin-cli-"));
+        dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "iglo-monitor-admin-cli-"));
         let port = await startApp();
         const socket = await connectRealtime(port);
         expect((await socket.request("setup", "admin", "admin-password")).ok).toBe(true);

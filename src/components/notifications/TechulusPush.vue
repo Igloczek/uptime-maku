@@ -80,10 +80,10 @@ export default {
     },
     mounted() {
         if (typeof this.$parent.notification.pushTitle === "undefined") {
-            this.$parent.notification.pushTitle = "Uptime Maku";
+            this.$parent.notification.pushTitle = "iglo.monitor";
         }
         if (typeof this.$parent.notification.pushChannel === "undefined") {
-            this.$parent.notification.pushChannel = "uptime-maku";
+            this.$parent.notification.pushChannel = "iglo-monitor";
         }
         if (typeof this.$parent.notification.pushSound === "undefined") {
             this.$parent.notification.pushSound = "default";

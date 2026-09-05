@@ -40,7 +40,7 @@ class Line extends NotificationProvider {
                         {
                             type: "text",
                             text:
-                                "Uptime Maku Alert: [🔴 Down]\n" +
+                                "iglo.monitor Alert: [🔴 Down]\n" +
                                 "Name: " +
                                 monitorJSON["name"] +
                                 " \n" +
@@ -57,7 +57,7 @@ class Line extends NotificationProvider {
                         {
                             type: "text",
                             text:
-                                "Uptime Maku Alert: [✅ Up]\n" +
+                                "iglo.monitor Alert: [✅ Up]\n" +
                                 "Name: " +
                                 monitorJSON["name"] +
                                 " \n" +

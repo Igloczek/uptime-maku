@@ -2,7 +2,7 @@
 
 ## Scope and result
 
-Uptime Maku uses one Bun SQLite connection. The original isolation work added a private transaction owner and a FIFO
+iglo.monitor uses one Bun SQLite connection. The original isolation work added a private transaction owner and a FIFO
 barrier so ordinary store operations could not join somebody else's transaction. A follow-up failure audit found one
 remaining unsafe terminal state: if both `COMMIT` and its defensive `ROLLBACK` failed, or an explicit `ROLLBACK`
 failed, the store released queued work onto the same connection while SQLite could still be inside the old

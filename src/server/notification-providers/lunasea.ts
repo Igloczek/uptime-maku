@@ -19,7 +19,7 @@ class LunaSea extends NotificationProvider {
             const target = this.getTarget(notification);
             if (heartbeatJSON == null) {
                 let testdata = {
-                    title: "Uptime Maku Alert",
+                    title: "iglo.monitor Alert",
                     body: msg,
                 };
                 await httpClient.post(`${url}/custom/${target}`, testdata, config);
@@ -28,7 +28,7 @@ class LunaSea extends NotificationProvider {
 
             if (heartbeatJSON["status"] === DOWN) {
                 let downdata = {
-                    title: "Uptime Maku Alert: " + monitorJSON["name"],
+                    title: "iglo.monitor Alert: " + monitorJSON["name"],
                     body:
                         "[🔴 Down] " +
                         heartbeatJSON["msg"] +
@@ -40,7 +40,7 @@ class LunaSea extends NotificationProvider {
 
             if (heartbeatJSON["status"] === UP) {
                 let updata = {
-                    title: "Uptime Maku Alert: " + monitorJSON["name"],
+                    title: "iglo.monitor Alert: " + monitorJSON["name"],
                     body:
                         "[✅ Up] " +
                         heartbeatJSON["msg"] +
